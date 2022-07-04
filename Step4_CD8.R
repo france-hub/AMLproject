@@ -424,11 +424,6 @@ mat[mat > 1] <- 1
 
 mat <- mat %>% as.data.frame() %>%  select(names(fs)) %>% as.matrix()
 
-cols <- setNames(cols, names(fs))
-row_anno <- rowAnnotation(
-  df = data.frame(label = factor(ks, levels = names(fs))),
-  col = list(label = cols), gp = gpar(col = "white")) 
-
 h <- Heatmap(mat,
              name = "Z-score",
              cluster_rows = FALSE,
