@@ -51,7 +51,6 @@ library(UCell)
 
 setwd("~/Documents/AML_project/scRNA_AMLproj")
 
-CD8 <-readRDS("scripts/CD8sub.rds")
 
 #Subclustering the integrated assay as suggested here https://github.com/satijalab/seurat/issues/2087 by timoast
 # Identify the 2000 most variable genes in the RNA assay 
@@ -377,24 +376,71 @@ ggplot(df, aes(x = group_id, y = frequency, color = group_id)) +
   theme_classic()
 dev.off()
 
-#DE between int and int-GZMK using DESeq2
-df1 <- FindMarkers(CD8, ident.1 = "Int", ident.2 = "Int-GZMK+", test.use = "DESeq2")
-df1 %>%
-  top_n(n = 100, wt = avg_log2FC) -> top100
+#Custom Markers
+fs <- list(
+  Naive = c("CCR7", "MAL", "LEF1", "SELL", "TCF7"),
+  GZMK_IL7R = c("BCL2", "BACH2", "CD27","IL7R", "SLAMF6", "CXCR3", "GZMK",  "ITGAE","ENTPD1"),
+  Int_GZMK = c("EOMES", "CCL4", "XCL2", "CCL3", "XCL1", "KLF6", "TIGIT"),
+  Tex = c("CD69", "CD160", "PDCD1", "NR4A2",  "DUSP2"),
+  Int = c("NKG7", "TBX21"),
+  Senescent_like = c("CD38","FCRL6", "FCGR3A", "C1orf21", "PRF1", 
+                     "GNLY", "ZEB2", "CX3CR1", "FGFBP2", "KLRD1", "GZMB","ZNF683", "CD226")
+)
+fs <- lapply(fs, sapply, function(g) 
+  grep(paste0("\\.",g, "$"), rownames(CD8), value = TRUE))
 
-DefaultAssay(CD8) <- "integrated"
+#Prepare Heatmap of mean marker-exprs. by cluster
+gs <- gsub(".*\\.", "", unlist(fs))
+ns <- vapply(fs, length, numeric(1))
+ks <- rep.int(names(fs), ns)
+labs <- sprintf("%s(%s)", gs, ks)
 
-#Plot heatmap with top100 genes
-DoHeatmap(CD8, features = top100$gene, label = TRUE)
+# split cells by cluster
+cbk <- split(colnames(CD8), CD8@active.ident)
 
-#DE between Tex and senescent-like using DESeq2
-df2 <- FindMarkers(CD8, ident.1 = "Senescent-like", ident.2 = "Tex", test.use = "DESeq2")
-df2 %>%
-  top_n(n = 100, wt = avg_log2FC) -> top100
+# compute cluster-marker means
+ct <- GetAssayData(CD8, slot = "counts")
+libsizes <- colSums(ct)
+sf <- libsizes/mean(libsizes)
+log.ct <- log2(t(t(ct)/sf) + 1)
 
-#Plot heatmap with top100 genes
-DoHeatmap(CD8, features = top100$gene, label = TRUE)
+mbk <- lapply(fs, function(gs)
+  vapply(cbk, function(i)
+    Matrix::rowMeans(log.ct[gs, i, drop = FALSE]), 
+    numeric(length(gs))))
 
+# prep. for plotting 
+mat <- do.call("rbind", mbk)
+rownames(mat) <- gsub(".*\\.", "", rownames(mat))
+
+#Z-score(?)
+mat <- t(scale(t(mat)))
+
+#0-1 scaling
+qs <- rowQuantiles(mat, probs = c(0.01, 0.99), na.rm = TRUE)
+mat <- (mat - qs[, 1])/(qs[, 2] - qs[, 1])
+mat[mat < 0] <- 0
+mat[mat > 1] <- 1
+
+mat <- mat %>% as.data.frame() %>%  select(names(fs)) %>% as.matrix()
+
+cols <- setNames(cols, names(fs))
+row_anno <- rowAnnotation(
+  df = data.frame(label = factor(ks, levels = names(fs))),
+  col = list(label = cols), gp = gpar(col = "white")) 
+
+h <- Heatmap(mat,
+             name = "Z-score",
+             cluster_rows = FALSE,
+             cluster_columns = FALSE,
+             row_names_side = "left",
+             column_title = "cluster_id",
+             column_title_side = "bottom",
+             #rect_gp = gpar(col = "white"),
+             row_names_gp = grid::gpar(fontsize = 8))
+#left_annotation = row_anno)
+
+h 
 #Gene set enrichment analysis
 #Download geneset acidosis from harmonizome
 df.acidosis <- readxl::read_xlsx("harmonizome.xlsx")
