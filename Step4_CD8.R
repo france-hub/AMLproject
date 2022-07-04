@@ -436,6 +436,7 @@ h <- Heatmap(mat,
 #left_annotation = row_anno)
 
 h 
+
 #Gene set enrichment analysis
 #Download geneset acidosis from harmonizome
 df.acidosis <- readxl::read_xlsx("harmonizome.xlsx")
