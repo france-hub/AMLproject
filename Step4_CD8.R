@@ -52,10 +52,12 @@ library(tidyr)
 library(viridis)
 library(Polychrome)
 library(presto)
+library(EnhancedVolcano)
+library(scCustomize)
 
 setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
 getwd()
-CD8 <-readRDS("scripts/CD8sub.rds")
+CD8 <-readRDS("CD8sub.rds")
 
 #Subclustering the integrated assay as suggested here https://github.com/satijalab/seurat/issues/2087 by timoast
 # Identify the 2000 most variable genes in the RNA assay 
@@ -109,6 +111,8 @@ FeaturePlot(CD8, T_CD8)
 T_CD4 <- paste0("[.]CD4$")
 T_CD4 <- rownames(CD8)[grep(T_CD4, rownames(CD8))]
 FeaturePlot(CD8, T_CD4) 
+ls()
+
 
 #Single Markers
 TCF7 <- "TCF7$"
@@ -126,9 +130,9 @@ FeaturePlot(CD8, CX3CR1, pt.size = 0.1, order = T, min.cutoff = "q10", max.cutof
   ggtitle("Effectors CX3CR1+")
 dev.off()
 
-LEF1 <- "LEF1$"
-LEF1 <- rownames(CD8)[grep(LEF1, rownames(CD8))]
-FeaturePlot(CD8, LEF1, min.cutoff = "q10", max.cutoff = "q90") + ggtitle("LEF1")
+CCR7 <- "CCR7$"
+CCR7 <- rownames(CD8)[grep(CCR7, rownames(CD8))]
+FeaturePlot(CD8, CCR7, min.cutoff = "q10", max.cutoff = "q90") + ggtitle("CCR7")
 
 CD69 <- "CD69$"
 CD69 <- rownames(CD8)[grep(CD69, rownames(CD8))]
@@ -199,9 +203,9 @@ CRTAM <- "CRTAM$"
 CRTAM <- rownames(CD8)[grep(CRTAM, rownames(CD8))]
 FeaturePlot(CD8, CRTAM, min.cutoff = "q10", max.cutoff = "q90") 
 
-KLF2 <- "KLF2$"
-KLF2 <- rownames(CD8)[grep(KLF2, rownames(CD8))]
-FeaturePlot(CD8, KLF2, min.cutoff = "q10", max.cutoff = "q90") 
+NR4A2 <- "NR4A2$"
+NR4A2 <- rownames(CD8)[grep(NR4A2, rownames(CD8))]
+FeaturePlot(CD8, NR4A2, min.cutoff = "q10", max.cutoff = "q90") 
 
 CXCR6 <- "CXCR6$"
 CXCR6 <- rownames(CD8)[grep(CXCR6, rownames(CD8))]
@@ -233,6 +237,46 @@ FeaturePlot(CD8, "Tpex1", pt.size = 0.1, order = T, min.cutoff = "q10", max.cuto
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + NoLegend() +
   ggtitle("GZMK+IL7R+ IL7R+GZMK+")
 dev.off()
+
+gene.list <- c(CCR7, TCF7, IL7R, GZMK, CD69, GZMB, GNLY, CX3CR1)
+gls <- strsplit(gene.list, ".", fixed = TRUE)
+titles <- sapply(gls, .subset, 2)
+
+p <-FeaturePlot(CD8, features = gene.list, cols = pal, combine=F, pt.size=0.001, order=T)
+
+for(i in 1:length(p)) {
+  p[[i]] <- p[[i]] + NoAxes()+theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5))+ggtitle(titles[i])
+
+}
+cowplot::plot_grid(plotlist = p, nrow =1)
+
+layout1<-"
+ABCDEFGH
+"
+
+p.markers.umap <- wrap_plots(p ,guides = 'collect', design = layout1)
+tiff("../plots/p.markers.umap.tiff", width = 5*540, height = 5*120, res = 300, pointsize = 5)     
+p.markers.umap
+dev.off()
+
+umap.coord <- ggplot(data.frame(x = 100, y = 100), aes(x = x, y = y)) +
+  geom_point() +
+  xlim(c(0, 10)) + ylim(c(0,10)) +
+  theme_classic() +
+  ylab("UMAP_2") + xlab("UMAP_1") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(
+          arrow = arrow(angle = 15, length = unit(0.5, "cm"), type = "closed")))
+
+layout <- c(
+  area(t = 1, l = 3, b = 11, r = 11),
+  area(t = 10, l = 2, b = 12, r = 2)
+)
+plot(layout)
+
+p.markers <- p.markers.umap + umap.coord + plot_layout(design = layout)
 
 # signatures
 #Scores
@@ -293,8 +337,29 @@ FeaturePlot(sobj, features = "sen1", pt.size = 0.1, order = T,  min.cutoff = "q1
   ggtitle("")
 dev.off()
 
-tiff("./plots/UMAP.tiff", width = 8*250, height = 5*300, res = 300, pointsize = 5)     
-DimPlot(CD8, label = TRUE)
+     
+p.umap <- DimPlot(CD8, label = TRUE)
+
+umap.coord <- ggplot(data.frame(x = 100, y = 100), aes(x = x, y = y)) +
+  geom_point() +
+  xlim(c(0, 10)) + ylim(c(0,10)) +
+  theme_classic() +
+  ylab("UMAP_2") + xlab("UMAP_1") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(
+          arrow = arrow(angle = 15, length = unit(0.5, "cm"), type = "closed")))
+
+layout <- c(
+  area(t = 1, l = 3, b = 11, r = 11),
+  area(t = 10, l = 2, b = 12, r = 2)
+)
+plot(layout)
+
+p.umap <- p.umap + umap.coord + plot_layout(design = layout)
+tiff("../plots/p.umap.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
+p.umap
 dev.off()
 
 #Remove patient dependent subset
@@ -491,16 +556,17 @@ column_ha<- HeatmapAnnotation(
   na_col = "grey"
 )
 
-tiff("../plots/clusteredDotPlot2.tiff", width = 5*300, height = 5*600, res = 300, pointsize = 5)     
-h <- Heatmap(exp_mat,
+tiff("../plots/clusteredDotPlot2.tiff", width = 5*400, height = 5*800, res = 300, pointsize = 5)     
+h.dot <- Heatmap(exp_mat,
         heatmap_legend_param=list(title="expression"),
         col=col_fun,
         rect_gp = gpar(type = "none"),
         cell_fun = cell_fun,
-        row_names_gp = gpar(fontsize = 7),
+        row_names_gp = gpar(fontsize = 9),
         row_km = 4,
         border = "black",
         top_annotation = column_ha)
+h.dot
 dev.off()
 
 #Custom Markers
@@ -550,19 +616,94 @@ row_anno <- rowAnnotation(
   df = data.frame(label = factor(ks, levels = names(fs))),
   col = list(label = cols), gp = gpar(col = "white")) 
 
-h <- Heatmap(mat,
+
+h.heat <- Heatmap(mat,
              name = "Z-score",
              cluster_rows = FALSE,
              cluster_columns = FALSE,
              row_names_side = "left",
-             column_title = "cluster_id",
              column_title_side = "bottom",
-             #rect_gp = gpar(col = "white"),
-             row_names_gp = grid::gpar(fontsize = 8))
+             col = pal,
+             row_names_gp = grid::gpar(fontsize = 6))
 
 
-#left_annotation = row_anno)
-h 
+library(ggplotify)
+h.dot <- as.grob(h.dot)
+h.heat <- as.grob(h.heat)
+p2 <- plot_grid(p, h.heat, nrow = 1)
+p3 <- plot_grid(p.markers, p2, nrow = 2)
+tiff("../plots/p.umap.tiff", width = 5*350, height = 5*200, res = 300, pointsize = 5)     
+p
+dev.off()
+
+tiff("../plots/p.heat.tiff", width = 5*150, height = 5*250, res = 300, pointsize = 5)     
+h.heat
+dev.off()
+
+#Condition DE
+CD8$clusters <- CD8@active.ident
+CD8.cond <- subset(CD8, subset = group_id != c("HD"))
+DefaultAssay(CD8) <- "RNA"
+Idents(CD8.cond) <- "group_id" 
+CD8.response <- FindMarkers(CD8.cond, ident.1 = "NonRes", ident.2 = "Res", 
+                                                  min.pct=0,logfc.threshold = -Inf,test.use = "MAST")
+
+avg.CD8.cond <- log1p(AverageExpression(CD8.cond)$RNA)
+avg.CD8.cond$gene <- rownames(avg.CD8.cond)
+top30 <- head(CD8.response, n = 30)
+CD8.response$log2FC<-log2(exp(CD8.response$avg_log2FC))
+CD8.cond$celltype.condition <- paste(CD8.cond$clusters, CD8.cond$group_id, sep = "_") #adding metadata identifier
+
+###Within Cluster DE
+clusters <-names(table(CD8.cond$clusters))
+for (i in clusters){
+  Idents(CD8.cond) <- "celltype.condition" #setting idents to new metadata column
+  df <- FindMarkers(CD8.cond, ident.1 = paste0(i,"_NonRes"), ident.2 = paste0(i,"_Res"), 
+                    min.pct=0,logfc.threshold = -Inf, test.use = MAST)
+  df2 <- head(df, n = 30)
+  assign(paste0("cluster",i,"top30"),df2)
+  df$log2FC<-log2(exp(df$avg_log2FC))
+  write.csv(df,paste0("cluster",i,".response.markers.csv"))
+  assign(paste0("cluster",i,".response"),df)
+  Idents(CD8.cond) <- "clusters"
+  temp<- subset(CD8.cond, idents = i)
+  Idents(temp) <- "group_id"
+  df <- log1p(AverageExpression(temp)$RNA)
+  df$gene <- rownames(df)
+  assign(paste0("avg.cluster",i),df)
+  assign(paste0("cluster",i),temp)
+}
+
+Idents(CD8.cond) <- "clusters"
+DefaultAssay(CD8.cond) <- "integrated"
+
+CD8.cond <- BuildClusterTree(CD8.cond)
+PlotClusterTree(CD8.cond,font=1)
+
+#Volcano Plots
+setwd("../plots/")
+for(i in c(ls(pattern=".response"))){
+  df<-get(i)
+  if(is.numeric(df$avg_log2FC)){
+    df$log2FC<-log2(exp(df$avg_log2FC))
+    gene.list<-rownames(df[abs(df$log2FC)>0.2&df$p_val_adj<0.01,])
+    if(length(gene.list)>20){gene.list<-rownames(df[abs(df$log2FC)>0.2&df$p_val_adj<0.001,])}
+    if(length(gene.list)>20){gene.list<-rownames(df[abs(df$log2FC)>0.25&df$p_val_adj<10e-10,])}
+    if(length(gene.list)>20){gene.list<-rownames(df[abs(df$log2FC)>0.3&df$p_val_adj<10e-50,])}
+    if(length(gene.list)>20){gene.list<-rownames(df[abs(df$log2FC)>0.75&df$p_val_adj<10e-100,])}
+    if(length(gene.list)>20){gene.list<-rownames(df[abs(df$log2FC)>1.5&df$p_val_adj<10e-200,])}
+    if(length(gene.list)>30){gene.list<-NA}
+    EnhancedVolcano(df,lab = rownames(df),
+                    x = 'log2FC',y = 'p_val_adj',title = i,col=c("black","black","black","red3"),
+                    selectLab=gene.list,xlab=bquote(~Log[2]~ (frac("NonRes","Res"))),
+                    pCutoff = 0.01,FCcutoff = 0.2,pointSize = 0.5,labSize = 3,axisLabSize=10,colAlpha = 1, #transparencyxlim = c(-1.5, 1.5),
+                    drawConnectors = TRUE,widthConnectors = 0.2,colConnectors = 'grey30',
+                    subtitle="", caption="",border="full",cutoffLineWidth=0,
+                    gridlines.major=F,gridlines.minor=F,titleLabSize=10
+    )
+    ggsave2(paste0(i,".volcano.tiff"),width=6, height=8,device="tiff")
+  }
+}
 
 #Gene set enrichment analysis
 #Download geneset acidosis from harmonizome
