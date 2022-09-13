@@ -48,9 +48,14 @@ library(escape)
 library(dittoSeq)
 library(snow)
 library(UCell)
+library(tidyr)
+library(viridis)
+library(Polychrome)
+library(presto)
 
-setwd("~/Documents/AML_project/scRNA_AMLproj")
-
+setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
+getwd()
+CD8 <-readRDS("scripts/CD8sub.rds")
 
 #Subclustering the integrated assay as suggested here https://github.com/satijalab/seurat/issues/2087 by timoast
 # Identify the 2000 most variable genes in the RNA assay 
@@ -223,10 +228,10 @@ Tpex <- list(rownames(CD8)[grep(Tpex, rownames(CD8))])
 CD8 <- AddModuleScore(CD8, features = Tpex, name = "Tpex", random.seed = 1)
 FeaturePlot(CD8, "Tpex1") + ggtitle("Tpex")
 
-tiff("./plots/stem-like.tiff", width = 5*350, height = 5*300, res = 300, pointsize = 5)     
+tiff("./plots/GZMK+IL7R+.tiff", width = 5*350, height = 5*300, res = 300, pointsize = 5)     
 FeaturePlot(CD8, "Tpex1", pt.size = 0.1, order = T, min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + NoLegend() +
-  ggtitle("stem-like IL7R+GZMK+")
+  ggtitle("GZMK+IL7R+ IL7R+GZMK+")
 dev.off()
 
 # signatures
@@ -273,16 +278,16 @@ FeaturePlot(CD8, "Tex1", pt.size = 0.1, order = T, min.cutoff = "q10", max.cutof
                          breaks=c(0.06, 0.32), label = c("0", "Maximum")) +
   ggtitle("Terminally exhausted (from Miller et al. 2019)")
 dev.off()
-
+DefaultAssay(sobj) <- "RNA"
 #Bulk senescence signature
 genes <- readxl::read_xlsx("signatures/Model_5_results.xlsx", sheet = 2)
 sen <- as.list(genes$gene_name[1:100])
 sen <- lapply(sen, function(x){paste0("[.]",x, "$")})
 sen <- paste0(sen, collapse = "|")
-sen <- list(rownames(CD8)[grep(sen, rownames(CD8))])
-CD8 <- AddModuleScore(CD8, features = sen, name = "sen", random.seed = 1)
+sen <- list(rownames(sobj)[grep(sen, rownames(sobj))])
+sobj <- AddModuleScore(sobj, features = sen, name = "sen", random.seed = 1)
 tiff("./plots/sen_group.tiff", width = 5*350, height = 5*300, res = 300, pointsize = 5)     
-FeaturePlot(CD8, features = "sen1", pt.size = 0.1, order = T,  min.cutoff = "q10", max.cutoff = "q90") + labs(col = "EXPRESSION") +
+FeaturePlot(sobj, features = "sen1", pt.size = 0.1, order = T,  min.cutoff = "q10", max.cutoff = "q90") + labs(col = "EXPRESSION") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")),
                          breaks=c(0.09, 0.42), label = c("0", "Maximum")) + 
   ggtitle("")
@@ -293,7 +298,7 @@ DimPlot(CD8, label = TRUE)
 dev.off()
 
 #Remove patient dependent subset
-CD8 <- subset(CD8, idents = '10', invert = TRUE)
+#CD8 <- subset(CD8, idents = '10', invert = TRUE)
 
 #Clean workspace
 rm(list=setdiff(ls(), "CD8"))
@@ -302,21 +307,22 @@ CD8 <- RenameIdents(CD8,
                     "0" = "Naive",
                     "1" = "Naive",
                     "2" = "Int",
-                    "3" = "Stem-like",
+                    "3" = "GZMK+IL7R+",
                     "4" = "Senescent-like",
                     "5" = "Tex", 
-                    "6" = "Stem-like", 
+                    "6" = "GZMK+IL7R+", 
                     "7" = "Naive", 
                     "8" = "Int", 
                     "9" = "Int-GZMK+",
+                    "10" = "Int",
                     "11" = "Senescent-like", 
                     "12" = "Senescent-like",
                     "13" = "Naive",
                     "14" = "Senescent-like",
-                    "15" = "Stem-like",
-                    "16" = "Stem-like",
-                    "17" = "Stem-like",
-                    "18" = "Stem-like",
+                    "15" = "GZMK+IL7R+",
+                    "16" = "GZMK+IL7R+",
+                    "17" = "GZMK+IL7R+",
+                    "18" = "GZMK+IL7R+",
                     "19" = "Tex",
                     "20" = "Int",
                     "21" = "Int")
@@ -335,22 +341,6 @@ tiff("./plots/UMAP_density.tiff", width = 5*600, height = 5*400, res = 300, poin
 a <- DimPlot(CD8, reduction = 'umap', split.by = "RespTmp")  + NoLegend() + NoAxes() 
 a +  geom_density_2d_filled(a$data, mapping = aes(x = a$data[,"UMAP_1"], y = a$data[,"UMAP_2"]), contour_var = "ndensity") + 
   facet_wrap(vars(RespTmp))
-dev.off()
-
-mark <- FindAllMarkers(CD8)
-mark %>%
-  group_by(cluster) %>%
-  top_n(n = 20, wt = avg_log2FC) -> top20
-df <- data.frame(top20$cluster, top20$gene)
-df <- reshape(transform(df, indx = ave(as.character(top20.cluster), top20.cluster, FUN = seq)), 
-              idvar = "indx", timevar = "top20.cluster", direction = "wide")
-View(top20)
-writexl::write_xlsx(df, "./genes.xlsx")
-
-tiff("./plots/DoHeat.tiff", width = 5*400, height = 5*500, res = 150, pointsize = 5)     
-DoHeatmap(object = CD8, features = top20$gene, size = 3, label = FALSE) + 
-  scale_fill_gradientn(colors = c("blue", "white", "red")) + 
-  theme(text = element_text(size = 6)) + ggtitle("Top 20")
 dev.off()
 
 #Relative abundance of the each clusters per condition (How to check for "significance"? What test should we apply?)
@@ -376,14 +366,151 @@ ggplot(df, aes(x = group_id, y = frequency, color = group_id)) +
   theme_classic()
 dev.off()
 
+#Permutation test 
+CD8$cluster_id <- CD8@active.ident
+prop_test <- sc_utils(CD8)
+
+prop_test_ResVSNonRes <- permutation_test(
+  prop_test, cluster_identity = "cluster_id",
+  sample_1 = "Res", sample_2 = "NonRes",
+  sample_identity = "group_id"
+)
+
+prop_test_HDVSRes <- permutation_test(
+  prop_test, cluster_identity = "cluster_id",
+  sample_1 = "HD", sample_2 = "Res",
+  sample_identity = "group_id"
+)
+
+prop_test_HDVSNonRes <- permutation_test(
+  prop_test, cluster_identity = "cluster_id",
+  sample_1 = "HD", sample_2 = "NonRes",
+  sample_identity = "group_id"
+)
+
+p2 <- permutation_plot(prop_test_ResVSNonRes, log2FD_threshold = log2(2)) + scale_color_manual(values = c("red", "blue"))
+p3 <- permutation_plot(prop_test_HDVSRes, log2FD_threshold = log2(2)) + scale_color_manual(values = c("red", "blue"))
+p4 <- permutation_plot(prop_test_HDVSNonRes, log2FD_threshold = log2(2)) + scale_color_manual(values = c("red", "blue"))
+
+bottom_row <- plot_grid(p2, p3, p4, labels = c('Res VS NonRes', 'HD VS Res', "HD VS NonRes"), label_x = .5, hjust = 0, label_size = 12, nrow = 1)
+
+tiff("./plots/sig.tiff", width = 5*400, height = 5*150, res = 150, pointsize = 5)     
+plot_grid(p1, bottom_row, label_size = 12, ncol = 1)
+dev.off()
+
+CD8$clusters <- CD8@active.ident
+
+#DGE all markers
+mark <- FindAllMarkers(CD8)
+mark %>%
+  group_by(cluster) %>%
+  top_n(n = 20, wt = avg_log2FC) -> top20
+df <- data.frame(top20$cluster, top20$gene)
+df  <-  reshape(transform(df, indx = ave(as.character(top20.cluster), top20.cluster, FUN = seq)), 
+              idvar = "indx", timevar = "top20.cluster", direction = "wide") 
+colnames(df) <- gsub("top20.gene.", "", colnames(df))
+
+all_markers <- df %>%
+  select(-indx) %>% 
+  unclass() %>% 
+  stack() %>%
+  pull(values) %>%
+  unique() %>%
+  .[!is.na(.)]
+
+p <- DotPlot(object = CD8, features = all_markers)
+p
+
+df<- p$data
+head(df)
+
+### the matrix for the scaled expression 
+exp_mat<-df %>% 
+  select(-pct.exp, -avg.exp) %>%  
+  pivot_wider(names_from = id, values_from = avg.exp.scaled) %>% 
+  as.data.frame() 
+
+row.names(exp_mat) <- exp_mat$features.plot  
+exp_mat <- exp_mat[,-1] %>% as.matrix()
+#order_clust <- c("Naive", "GZMK+IL7R+", "Int-GZMK+", "Tex", "Int", "Senescent-like")
+#exp_mat <- exp_mat[, order_clust]
+## the matrix for the percentage of cells express a gene
+percent_mat<-df %>% 
+  select(-avg.exp, -avg.exp.scaled) %>%  
+  pivot_wider(names_from = id, values_from = pct.exp) %>% 
+  as.data.frame() 
+
+row.names(percent_mat) <- percent_mat$features.plot  
+percent_mat <- percent_mat[,-1] %>% as.matrix()
+
+head(percent_mat)
+
+## the range is from 0 - 100
+range(percent_mat)
+
+## these two matrix have the same dimension
+dim(exp_mat)
+
+dim(percent_mat)
+
+## get an idea of the ranges of the matrix
+quantile(exp_mat, c(0.1, 0.5, 0.9, 0.99))
+
+## any value that is greater than 2 will be mapped to yellow
+col_fun = circlize::colorRamp2(c(-1, 0, 2), viridis(20)[c(1,10, 20)])
+
+
+cell_fun = function(j, i, x, y, w, h, fill){
+  grid.rect(x = x, y = y, width = w, height = h, 
+            gp = gpar(col = NA, fill = NA))
+  grid.circle(x=x,y=y,r= percent_mat[i, j]/100 * min(unit.c(w, h)),
+              gp = gpar(fill = col_fun(exp_mat[i, j]), col = NA))}
+
+s_em <- strsplit(rownames(exp_mat), ".", fixed = TRUE)
+rownames(exp_mat) <- sapply(s_em, .subset, 2)
+
+## also do a kmeans clustering for the genes with k = 4
+Heatmap(exp_mat,
+        heatmap_legend_param=list(title="expression"),
+        column_title = "clustered dotplot", 
+        col=col_fun,
+        rect_gp = gpar(type = "none"),
+        cell_fun = cell_fun,
+        row_names_gp = gpar(fontsize = 5),
+        row_km = 4,
+        border = "black")
+
+colnames(exp_mat)
+
+cluster_anno <- c("Naive", "Int", "GZMK+IL7R+", "Senescent-like", "Tex", "Int-GZMK+")
+
+column_ha<- HeatmapAnnotation(
+  cluster_anno = cluster_anno,
+  col = list(cluster_anno = setNames(brewer.pal(6, "Paired"), unique(cluster_anno))
+  ),
+  na_col = "grey"
+)
+
+tiff("../plots/clusteredDotPlot2.tiff", width = 5*300, height = 5*600, res = 300, pointsize = 5)     
+h <- Heatmap(exp_mat,
+        heatmap_legend_param=list(title="expression"),
+        col=col_fun,
+        rect_gp = gpar(type = "none"),
+        cell_fun = cell_fun,
+        row_names_gp = gpar(fontsize = 7),
+        row_km = 4,
+        border = "black",
+        top_annotation = column_ha)
+dev.off()
+
 #Custom Markers
 fs <- list(
   Naive = c("CCR7", "MAL", "LEF1", "SELL", "TCF7"),
-  GZMK_IL7R = c("BCL2", "BACH2", "CD27","IL7R", "SLAMF6", "CXCR3", "GZMK",  "ITGAE","ENTPD1"),
-  Int_GZMK = c("EOMES", "CCL4", "XCL2", "CCL3", "XCL1", "KLF6", "TIGIT"),
+  `GZMK+IL7R+` = c("BCL2", "BACH2", "CD27","IL7R", "SLAMF6", "CXCR3", "GZMK",  "ITGAE","ENTPD1"),
+  `Int-GZMK+` = c("EOMES", "CCL4", "XCL2", "CCL3", "XCL1", "KLF6", "TIGIT"),
   Tex = c("CD69", "CD160", "PDCD1", "NR4A2",  "DUSP2"),
   Int = c("NKG7", "TBX21"),
-  Senescent_like = c("CD38","FCRL6", "FCGR3A", "C1orf21", "PRF1", 
+  `Senescent-like` = c("CD38","FCRL6", "FCGR3A", "C1orf21", "PRF1", "ENO1",
                      "GNLY", "ZEB2", "CX3CR1", "FGFBP2", "KLRD1", "GZMB","ZNF683", "CD226")
 )
 fs <- lapply(fs, sapply, function(g) 
@@ -413,16 +540,15 @@ mbk <- lapply(fs, function(gs)
 mat <- do.call("rbind", mbk)
 rownames(mat) <- gsub(".*\\.", "", rownames(mat))
 
-#Z-score(?)
+#Z-score
 mat <- t(scale(t(mat)))
 
-#0-1 scaling
-qs <- rowQuantiles(mat, probs = c(0.01, 0.99), na.rm = TRUE)
-mat <- (mat - qs[, 1])/(qs[, 2] - qs[, 1])
-mat[mat < 0] <- 0
-mat[mat > 1] <- 1
-
 mat <- mat %>% as.data.frame() %>%  select(names(fs)) %>% as.matrix()
+
+cols <- setNames(cols, names(fs))
+row_anno <- rowAnnotation(
+  df = data.frame(label = factor(ks, levels = names(fs))),
+  col = list(label = cols), gp = gpar(col = "white")) 
 
 h <- Heatmap(mat,
              name = "Z-score",
@@ -433,8 +559,9 @@ h <- Heatmap(mat,
              column_title_side = "bottom",
              #rect_gp = gpar(col = "white"),
              row_names_gp = grid::gpar(fontsize = 8))
-#left_annotation = row_anno)
 
+
+#left_annotation = row_anno)
 h 
 
 #Gene set enrichment analysis
@@ -499,60 +626,63 @@ dev.off()
 clusterLabels <- CD8@active.ident
 sceCD8 <- as.SingleCellExperiment(CD8, assay = "RNA")
 sds <- slingshot(sceCD8, clusterLabels = clusterLabels, 
-                 allow.breaks = TRUE, stretch = 2, reducedDim = "UMAP", start.clus = "Naive") #Calcualting the trajectory
+                  allow.breaks = TRUE, stretch = 2, reducedDim = "UMAP", start.clus = "Naive") #Calcualting the trajectory
 sds <- SlingshotDataSet(sds)
 
-#Create dataframe pseudotimes
-pt <- as.data.frame(slingPseudotime(sds))
-colnames(pt) <- c("pseudoT1", "pseudoT2")
-names <- rownames(pt)
-   
-#Extract the curves coordinates
-curve1 <- slingCurves(sds)[[1]]
-curve2 <- slingCurves(sds)[[2]]
-   
-#Create dataframe with UMAP coordinates
-umap_df <- reducedDim(sceCD8, "UMAP")
-   
-#Create dataframe with UMAP coordinates and pseudotimes
-df <- cbind(umap_df, pt)
-   
-#Plot according to pseudotime values  (pseudoT1)
-p1 <- ggplot(df, aes(UMAP_1, UMAP_2)) +
-   geom_point(aes_string(color = df$pseudoT1),
-              alpha = 0.5) +
-   scale_colour_viridis_c() +
-   theme_minimal() + labs(colour = "Pseudotime") 
-   
-   
-#Plot 1st lineage
-tiff("./plots/traj1.tiff", width = 8*100, height = 5*100, res = 150, pointsize = 5)  
-p1 <- p1 + geom_path(aes(x = UMAP_1, y = UMAP_2), data = curve1$s[curve1$ord, ] %>% as.data.frame(),
-                     col = "black", size = 1, arrow = arrow(), lineend = "round") + scale_color_viridis_c() +  labs(color = "Pseudotime") + ggtitle("Senescence")
-dev.off()
-   
-#Plot according to pseudotime (pseudoT2)
-p2 <- ggplot(df, aes(UMAP_1, UMAP_2)) +
-   geom_point(aes_string(color = df$pseudoT2),
-              alpha = 0.5) +
-   scale_colour_viridis_c() +
-   theme_minimal() + labs(colour = "Pseudotime")
-   
-tiff("./plots/traj2.tiff", width = 8*100, height = 5*100, res = 150, pointsize = 5)  
-p2 <- p2 +   geom_path(aes(x = UMAP_1, y = UMAP_2), data = curve2$s[curve2$ord, ] %>% as.data.frame(),
-                       col = "black", size = 1, arrow = arrow(), lineend = "round") + scale_color_viridis_c() +  labs(color = "Pseudotime") + ggtitle("Exhaustion")
-dev.off()
-   
-tiff("./plots/traj.tiff", width = 8*130, height = 5*300, res = 150, pointsize = 5)  
-plot_grid(p1, p2, ncol = 1, align = "h")
-dev.off()
+df <- bind_cols(
+  as.data.frame(reducedDim(sds, "UMAP")),
+  slingPseudotime(sds) %>% as.data.frame() %>%
+    dplyr::rename_with(paste0, "_pst", .cols = everything()),
+  slingCurveWeights(sds) %>% as.data.frame(),
+) %>%
+  mutate(Lineage1_pst = if_else(is.na(Lineage1_pst), 0, Lineage1_pst),
+         Lineage2_pst = if_else(is.na(Lineage2_pst), 0, Lineage2_pst),
+         pst = if_else(Lineage1 > Lineage2, Lineage1_pst, Lineage2_pst))
+
+curves <- slingCurves(sds, as.df = TRUE)
+
+
+#Look at single lineages
+#Lineage 1 
+ggplot(df, aes(UMAP_1, UMAP_2)) +
+  geom_point(aes_string(color = df$Lineage1_pst),
+             alpha = 0.5) +
+  scale_colour_viridis_c() +
+  theme_minimal() + labs(colour = "Pseudotime") 
+
+#Lineage 2
+ggplot(df, aes(UMAP_1, UMAP_2)) +
+  geom_point(aes_string(color = df$Lineage2_pst),
+             alpha = 0.5) +
+  scale_colour_viridis_c() +
+  theme_minimal() + labs(colour = "Pseudotime") 
+
+#Together
+p1 <- ggplot(df, aes(x = UMAP_1, y = UMAP_2)) +
+  geom_point(size = .7, aes(col = pst)) +
+  scale_color_viridis_c() +
+  labs(col = "Pseudotime") +
+  geom_path(data = curves %>% arrange(Order),
+            aes(group = Lineage), col = "black",  arrow = arrow(), lineend = "round", size = 1.5) +
+  annotate("text", x = -7.5, y = 5.8, label = "Senescence", size = 5) +
+  annotate("text", x = -7, y = -5.6, label = "Exhaustion", size = 5) +
+  theme(legend.position = c(.15, .35),
+        legend.background = element_blank()) +  theme_minimal()  
+
+#Fit negative binomial model
+set.seed(5)
+icMat <- evaluateK(counts = counts(sceCD8), sds = sds, k = 3:10, 
+                   nGenes = 200, verbose = T)
+
+set.seed(7)
+counts <- CD8[["RNA"]]@counts
 
 ## Identifying differentially expressed genes along a trajectory
 #Fit negative binomial model
 set.seed(5)
 par(mar=c(1,1,1,1))
 icMat <- evaluateK(counts = counts(sceCD8), sds = sds, k = 3:7, 
-                  nGenes = 100, verbose = T, plot = TRUE)
+                   nGenes = 100, verbose = T, plot = TRUE)
 print(icMat[1:2,])
 set.seed(7)
 
@@ -562,316 +692,168 @@ BPPARAM # lists current options
 BPPARAM$workers <- 2
 
 #fitGAM
-sceCD8 <- fitGAM(counts = counts(sceCD8), sds = sds, nknots = 5, verbose = TRUE, BPPARAM = BPPARAM)
+sce.gam <- fitGAM(counts = counts(sceCD8), sds = sds, nknots = 5, verbose = TRUE, BPPARAM = BPPARAM)
 
 # plot our Slingshot lineage trajectories, this time illustrating the new tradeSeq knots
 tiff("./plots/traj.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 plotGeneCount(curve = sds, counts = counts,
-             clusters = CD8@active.ident,
-             models = sceCD8)
+              clusters = CD8@active.ident,
+              models = sce.gam)
 dev.off()
-   
+
 #Association test
-assoRes <- associationTest(sceCD8)
+assoRes <- associationTest(sce.gam)
 head(assoRes)
-   
+
 ### Discovering differentiated cell type markers
 # discover marker genes for the differentiated cell types
-endRes <- diffEndTest(sceCD8) #Nothing interesting with this analysis
+endRes <- diffEndTest(sce.gam) #Nothing interesting with this analysis
 head(endRes)
-   
+
 o <- order(endRes$waldStat, decreasing = TRUE)
-sigGene <- names(sceCD8)[o[2]]
+sigGene <- names(sce.gam)[o[2]]
 plotSmoothers(sceCD8, counts(sceCD8), sigGene) 
-   
-plotGeneCount(sds, counts(sceCD8), gene = sigGene)
+
+plotGeneCount(sds, counts(sce.gam), gene = sigGene)
 
 # Marker genes between specific roots   
-earlyDERes <- earlyDETest(sceCD8, knots = c(3, 4))
+earlyDERes <- earlyDETest(sce.gam, knots = c(3, 4))
 oEarly <- order(earlyDERes$waldStat, decreasing = TRUE)
 head(rownames(earlyDERes)[oEarly])
-plotSmoothers(sceCD8, counts(sceCD8), gene = rownames(earlyDERes)[oEarly][1])
-plotGeneCount(sds, counts(sceCD8), gene = rownames(earlyDERes)[oEarly][3])
+plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(earlyDERes)[oEarly][1])
+plotGeneCount(sds, counts(sce.gam), gene = rownames(earlyDERes)[oEarly][3])
 
 #Genes with different expression patterns (most interesting part)
-patternRes <- patternTest(sceCD8)
+patternRes <- patternTest(sce.gam)
 oPat <- order(patternRes$waldStat, decreasing = TRUE)
-head(rownames(patternRes)[oPat])
+rownames(patternRes)[oPat][1:10]
 
-tiff("./plots/DEtrajGZMK.tiff", width = 8*100, height = 5*100, res = 150, pointsize = 5)  
-plotSmoothers(sceCD8, counts(sceCD8), gene = rownames(patternRes)[oPat][1]) + ggtitle ("GZMK")
+p.leg <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][1]) + 
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "Senescence", "2"="Exhaustion")) +
+  theme(legend.text = element_text(size=15),
+        legend.title = element_text(size=16))
+
+legend <- cowplot::get_legend(p.leg + theme(legend.position = "right"))
+
+p2 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][1], 
+                    xlab = "",
+                    ylab = "") + 
+  ggtitle ("NKG7") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+p3 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][2],
+                    xlab = "",
+                    ylab = "") + 
+  ggtitle ("GZMK") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  #scale_color_viridis_d(name = "Lineages", labels=c("1" = "Senescence", "2"="Exhaustion")) +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+p4 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][6],
+                    xlab = '', ylab = '') + 
+  ggtitle ("PRF1") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  #scale_color_viridis_d(name = "Lineages", labels=c("1" = "Senescence", "2"="Exhaustion")) +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+p5 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][7],
+                    xlab = '',
+                    ylab = '') + 
+  ggtitle ("GNLY") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  #scale_color_viridis_d(name = "Lineages", labels=c("1" = "Senescence", "2"="Exhaustion")) +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+
+p6 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][8],
+                    xlab = '',
+                    ylab = '') + 
+  ggtitle ("GZMB") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  #scale_color_viridis_d(name = "Lineages", labels=c("1" = "Senescence", "2"="Exhaustion")) +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+#NR4A2
+p7 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][68],
+                    xlab = '',
+                    ylab = '') + 
+  ggtitle ("NR4A2") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  #scale_color_viridis_d(name = "Lineages", labels=c("1" = "Senescence", "2"="Exhaustion")) +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+p.patt <- plot_grid(p2, p4, p5, p6, p3, p7) + theme_void()
+legend <- cowplot::get_legend(p.leg)
+p.patt.stack <- plot_grid(p.traj, NULL, legend, rel_widths = c(1, -0.2, 1), nrow = 1)
+
+ptrajcoord <- ggplot(data.frame(x = 100, y = 100), aes(x = x, y = y)) +
+  geom_point() +
+  xlim(c(0, 10)) + ylim(c(0,10)) +
+  theme_classic() +
+  ylab("Log(expression + 1") + xlab("Pseudotime") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(
+          arrow = arrow(angle = 15, length = unit(0.5, "cm"), type = "closed")))
+
+layout <- c(
+  area(t = 1, l = 3, b = 11, r = 11),
+  area(t = 10, l = 2, b = 12, r = 2)
+)
+plot(layout)
+
+p.patt <- p.patt.stack + ptrajcoord + plot_layout(design = layout)
+
+p.umapcoord <- ggplot(data.frame(x = 100, y = 100), aes(x = x, y = y)) +
+  geom_point() +
+  xlim(c(0, 10)) + ylim(c(0,10)) +
+  theme_classic() +
+  ylab("UMAP_2") + xlab("UMAP_1") +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(
+          arrow = arrow(angle = 15, length = unit(0.5, "cm"), type = "closed")))
+
+layout <- c(
+  area(t = 1, l = 3, b = 11, r = 11),
+  area(t = 10, l = 2, b = 12, r = 2)
+)
+
+p.traj <- p1 + p.umapcoord + plot_layout(design = layout)
+
+tiff("./plots/traj.tiff", width = 5*1400, height = 5*500, res = 300, pointsize = 5)     
+plot_grid(p.traj, p.patt, rel_widths = c(1,2), nrow = 1)
 dev.off()
+ls()
 
-tiff("./plots/DEtrajNKG7.tiff", width = 8*100, height = 5*100, res = 150, pointsize = 5)  
-plotSmoothers(sceCD8, counts(sceCD8), gene = rownames(patternRes)[oPat][2]) + ggtitle ("NKG7")
-dev.off()
-
-tiff("./plots/DEtrajGNLY.tiff", width = 8*100, height = 5*100, res = 150, pointsize = 5)  
-plotSmoothers(sceCD8, counts(sceCD8), gene = rownames(patternRes)[oPat][7]) + ggtitle ("GNLY")
-dev.off()
-
-tiff("./plots/DEtrajPRF1.tiff", width = 8*100, height = 5*100, res = 150, pointsize = 5)  
-plotSmoothers(sceCD8, counts(sceCD8), gene = rownames(patternRes)[oPat][8]) + ggtitle ("PRF1")
-dev.off()
-
-tiff("./plots/DEtrajGZMB.tiff", width = 8*100, height = 5*100, res = 150, pointsize = 5)  
-plotSmoothers(sceCD8, counts(sceCD8), gene = rownames(patternRes)[oPat][9]) + ggtitle ("GZMB")
-dev.off()
-
-#DGE between lineages conditions according to pseudotime
-#First consider only Res and NonRes 
-sce <- as.SingleCellExperiment(CD8, assay = "RNA") #restart before running Slingshot and fitGAM
-sce.cond <- subset(sce,,group_id %in% c("Res", "NonRes")) #filter out HD
-sds <- slingshot(sce, reducedDim = 'UMAP', clusterLabels = colData(sce)$ident,
-                    start.clus = 'Tnaive', approx_points = 150)
-sds <- SlingshotDataSet(sds)
-
-#Trajectory by condition (compare Res and NonRes)
-df <- bind_cols(
- as.data.frame(reducedDim(sce.cond, "UMAP")),
- as.data.frame(colData(sce.cond))
-) %>%
- sample_frac(1)
-
-scores <- condiments::imbalance_score(
- Object = df %>% select(UMAP_1, UMAP_2) %>% as.matrix(), 
- conditions = df$group_id)
-   
-df$scores <- scores$scores
-p3 <- ggplot(df, aes(x = UMAP_1, y = UMAP_2, col = scores)) +
- geom_point(size = .7) +
- scale_color_viridis_c(option = "C") +
- labs(col = "Scores")
-p3
-
-df$scaled_scores <- scores$scaled_scores
-p4 <- ggplot(df, aes(x = UMAP_1, y = UMAP_2, col = scaled_scores)) +
-  geom_point(size = .7) +
-  scale_color_viridis_c(option = "C") +
-  labs(col = "Scores")
-p4
-
-topologyTest(SlingshotDataSet(sds), sce.cond$group_id, rep = 100,
-             methods = "KS_mean", threshs = .01)
-knitr::kable(top_res)
-
-psts <- slingPseudotime(sds) %>%
-  as.data.frame() %>%
-  mutate(cells = rownames(.),
-         conditions = df$group_id) %>%
-  pivot_longer(starts_with("Lineage"), values_to = "pseudotime", names_to = "lineages")
-
-ggplot(psts, aes(x = pseudotime, fill = conditions)) +
-  geom_density(alpha = .5) +
-  scale_fill_brewer(type = "qual") +
-  facet_wrap(~lineages) +
-  theme(legend.position = "bottom")
-
-prog_res <- progressionTest(sds, conditions = df$group_id, global = TRUE, lineages = TRUE)
-knitr::kable(prog_res)
-
-df$weight_1 <- slingCurveWeights(sds, as.probs = TRUE)[, 1]
-ggplot(df, aes(x = weight_1, fill = group_id)) +
-  geom_density(alpha = .5) +
-  scale_fill_brewer(type = "qual") +
-  labs(x = "Curve weight for the first lineage")
-
-dif_res <- differentiationTest(sds, conditions = df$group_id, global = FALSE, pairwise = TRUE)
-knitr::kable(dif_res)
-
-#Run fitGAM according to conditions and plot heatmaps 
-BPPARAM <- BiocParallel::bpparam()
-BPPARAM # lists current options
-BPPARAM$workers <- 10
-
-set.seed(5)
-icMat <- evaluateK(counts(sce), sds = sds, k = 3:7, nGenes = 100, verbose = T, conditions = factor(colData(sce)$group_id), plot = T)
-
-set.seed(3)
-sce <-fitGAM(counts = counts(sce), sds = sds, nknots = 5, conditions = factor(colData(sce)$group_id), verbose = TRUE, BPPARAM = BPPARAM)
-
-#Differential expression between lineages
-patRes <- patternTest(sce, l2fc = log2(2))
-patRes$padj <- p.adjust(patRes$pvalue, "fdr")
-mean(patRes$padj <= 0.05, na.rm = TRUE)
-
-sum(patRes$padj <= 0.05, na.rm = TRUE)
-
-patternGenes <- rownames(patRes)[patRes$padj <= 0.05]
-patternGenes <- patternGenes[!is.na(patternGenes)]
-
-### based on mean smoother
-#DGE NonRes lineage1 vs lineage2
-yhatSmooth <- predictSmooth(sce, gene = patternGenes, nPoints = 50, tidy = TRUE) %>%
-  mutate(yhat = log1p(yhat)) %>%
-  group_by(gene) %>%
-  mutate(yhat = scales::rescale(yhat)) %>%
-  filter(condition == "NonRes") %>%
-  select(-condition) %>%
-  ungroup()
-
-heatSmooth_Lineage1 <- pheatmap(
-  yhatSmooth %>%
-    filter(lineage == 1) %>%
-    select(-lineage) %>%
-    arrange(-time) %>%
-    pivot_wider(names_from = time, values_from = yhat) %>%
-    select(-gene),
-  cluster_cols = FALSE, show_rownames = FALSE, show_colnames = FALSE,
-  main = "Lineage 1", legend = FALSE, silent = TRUE
-)
-
-heatSmooth_Lineage2 <- pheatmap(
-  (yhatSmooth %>%
-     filter(lineage == 2) %>%
-     select(-lineage) %>%
-     arrange(-time) %>%
-     pivot_wider(names_from = time, values_from = yhat) %>%
-     select(-gene))[heatSmooth_Lineage1@row_order, ],
-  cluster_cols = FALSE, cluster_rows = FALSE,
-  show_rownames = FALSE, show_colnames = FALSE, main = "Lineage 2",
-  legend = FALSE, silent = TRUE 
-)
-
-heatSmooth_Lineage1
-heatSmooth_Lineage2
-
-#DGE Responders libeage1 vs lineage2
-yhatSmooth <- predictSmooth(sce, gene = patternGenes, nPoints = 50, tidy = TRUE) %>%
-  mutate(yhat = log1p(yhat)) %>%
-  group_by(gene) %>%
-  mutate(yhat = scales::rescale(yhat)) %>%
-  filter(condition == "NonRes") %>%
-  select(-condition) %>%
-  ungroup()
-
-heatSmooth_Lineage1 <- pheatmap(
-  yhatSmooth %>%
-    filter(lineage == 1) %>%
-    select(-lineage) %>%
-    arrange(-time) %>%
-    pivot_wider(names_from = time, values_from = yhat) %>%
-    select(-gene),
-  cluster_cols = FALSE, show_rownames = FALSE, show_colnames = FALSE,
-  main = "Lineage 1", legend = FALSE, silent = TRUE
-)
-
-heatSmooth_Lineage2 <- pheatmap(
-  (yhatSmooth %>%
-     filter(lineage == 2) %>%
-     select(-lineage) %>%
-     arrange(-time) %>%
-     pivot_wider(names_from = time, values_from = yhat) %>%
-     select(-gene))[heatSmooth_Lineage1@row_order, ],
-  cluster_cols = FALSE, cluster_rows = FALSE,
-  show_rownames = FALSE, show_colnames = FALSE, main = "Lineage 2",
-  legend = FALSE, silent = TRUE 
-)
-
-heatSmooth_Lineage1
-heatSmooth_Lineage2
-
-#Differential expression between conditions
-condRes <- conditionTest(sce, l2fc = log2(2), lineages = TRUE)
-condRes$padj <- p.adjust(condRes$pvalue, "fdr")
-mean(condRes$padj <= 0.05, na.rm = TRUE)
-
-sum(condRes$padj <= 0.05, na.rm = TRUE)
-
-conditionGenes <- rownames(condRes)[condRes$padj <= 0.05]
-conditionGenes <- conditionGenes[!is.na(conditionGenes)]
-
-scales <- brewer.pal(3, "Accent")[1:4]
-
-# plot genes
-oo <- order(condRes$waldStat, decreasing = TRUE)
-
-# most significant gene
-p1 <- plotSmoothers(sce, assays(sce)$counts,
-                    gene = rownames(assays(sce)$counts)[oo[1]],
-                    alpha = 1, border = TRUE, curvesCols = scales) +
-  scale_color_manual(values = scales) +
-  ggtitle(rownames(assays(sce)$counts)[oo[1]])
-
-p1
-
-# Second most significant gene
-p2 <- plotSmoothers(sce, assays(sce)$counts,
-                    gene = rownames(assays(sce)$counts)[oo[2]],
-                    alpha = 1, border = TRUE, curvesCols = scales) +
-  scale_color_manual(values = scales) +
-  ggtitle(rownames(assays(sce)$counts)[oo[2]])
-
-p2
-
-### based on mean smoother
-condRes$padj_lineage1 <- p.adjust(condRes$pvalue_lineage1, "fdr")
-conditionGenes_lineage1 <- rownames(condRes)[condRes$padj_lineage1 <= 0.05]
-conditionGenes_lineage1 <- conditionGenes_lineage1[!is.na(conditionGenes_lineage1)]
-
-yhatSmooth <- predictSmooth(sce, gene = conditionGenes_lineage1, nPoints = 50, tidy = FALSE) %>%
-  log1p()
-yhatSmoothScaled <- t(apply(yhatSmooth[, c(1:50, 101:150)], 1, scales::rescale))
-heatSmooth_NonRes <- pheatmap(yhatSmoothScaled[, 1:50],
-                              cluster_cols = FALSE,
-                              show_rownames = FALSE, show_colnames = FALSE, main = "NonRes", legend = FALSE,
-                              silent = TRUE
-)
-
-matchingHeatmap_Res <- pheatmap(yhatSmoothScaled[heatSmooth_NonRes@row_order, 51:100],
-                                cluster_cols = FALSE, cluster_rows = FALSE,
-                                show_rownames = FALSE, show_colnames = FALSE, main = "Res",
-                                legend = FALSE, silent = TRUE
-)
-
-heatSmooth_NonRes
-matchingHeatmap_Res
-
-condRes$padj_lineage2 <- p.adjust(condRes$pvalue_lineage2, "fdr")
-conditionGenes_lineage2 <- rownames(condRes)[condRes$padj_lineage2 <= 0.05]
-conditionGenes_lineage2 <- conditionGenes_lineage2[!is.na(conditionGenes_lineage2)]
-
-yhatSmooth <- predictSmooth(sce, gene = conditionGenes_lineage2, nPoints = 50, tidy = FALSE) %>%
-  log1p()
-yhatSmoothScaled <- t(apply(yhatSmooth[, c(51:100, 151:200)], 1, scales::rescale))
-colnames(yhatSmoothScaled)
-heatSmooth_NonRes <- pheatmap(yhatSmoothScaled[, 1:50],
-                              cluster_cols = FALSE,
-                              show_rownames = FALSE, show_colnames = FALSE, main = "NonRes", legend = FALSE,
-                              silent = TRUE
-)
-
-matchingHeatmap_Res <- pheatmap(yhatSmoothScaled[heatSmooth_NonRes$tree_row$order, 51:100],
-                                cluster_cols = FALSE, cluster_rows = FALSE,
-                                show_rownames = FALSE, show_colnames = FALSE, main = "Res",
-                                legend = FALSE, silent = TRUE
-)
-
-p10 <- plot_grid(heatSmooth_NonRes[[4]], matchingHeatmap_Res[[4]],
-                 NULL, NULL, NULL, ncol = 2, rel_widths = c(1.4, 1, 1), rel_heights = c(10, 1)) +
-  draw_text("Lineage 2", x = .5, y = .5)
-p10
-
-plot_grid(p9, p10, ncol = 2)
-
-##Fix the error (GSEA does not work)
-## C7 category is according to gene ontology grouping: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4707969/pdf/nihms-743907.pdf
-geneSets <- msigdbr(species = "Homo sapiens", category = "C7")
-### filter background to only include genes that we assessed.
-geneSets$gene_symbol <- toupper(geneSets$gene_symbol)
-ss1 <- strsplit(rownames(sce), ".", fixed=TRUE)
-genenames <- sapply(ss1, .subset, 2)
-geneSets <- geneSets[geneSets$gene_symbol %in% genenames,]
-m_list <- geneSets %>% split(x = .$gene_symbol, f = .$gs_name)
-condRes <- conditionTest(sce, l2fc = log2(2))
-statsCond <- condRes$waldStat
-ss2 <- strsplit(rownames(condRes), ".", fixed=TRUE)
-names(statsCond) <- sapply(ss1, .subset, 2)
-eaRes <- fgsea(pathways = m_list, stats = statsCond, nperm = 5e4, minSize = 10)
-ooEA <- order(eaRes$pval, decreasing = FALSE)
-kable(head(eaRes[ooEA, 1:3], n = 20))
-##????
-
+getwd()
 #Velocity
 #Load in the files
 ld.list <- list.files("velocity", pattern = "loom", all.files = TRUE)
@@ -907,6 +889,11 @@ CD8[["ambiguous"]] <- ambiguous
 CD8[['RNA']] <- CD8[["spliced"]]
 DefaultAssay(CD8) <- "RNA"
 CD8$celltype <- CD8@active.ident
+
+DimPlot(sobj)
+
+SaveH5Seurat(sobj, filename = "sobjscv.h5Seurat")
+Convert("sobjscv.h5Seurat", dest = "h5ad") 
 
 #save seurat and convert into h5ad
 SaveH5Seurat(CD8, filename = "CD8scv.h5Seurat")
@@ -982,11 +969,9 @@ alluvialClonotypes(CD8, cloneCall = "gene",
 
 CD8@meta.data$cluster_id <- CD8@active.ident
 
-
-
 tiff("./plots/clonoUMAP.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 p <- clonalOverlay(CD8, reduction = "umap", 
-                   freq.cutpoint = 30, bins = 10, facet = "group_id") + 
+                   freq.cutpoint = 20, bins = 10, facet = "group_id") + 
   guides(color = FALSE) 
 p
 dev.off()
@@ -1010,12 +995,9 @@ ggplot(data = meta, aes(x = CD8@active.ident, y = value, fill = cloneType)) + ge
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) + scale_fill_manual(values = c(palette(5)),
                                                                                             na.value = "grey")
 
-
 CD8_split <- SplitObject(CD8, split.by = "group_id")
 CD8_R <- CD8_split$Res
 CD8_NR <- CD8_split$NonRes
-
-
 
 mark_res <- FindAllMarkers(CD8_R)
 mark_nr <- FindAllMarkers(CD8_NR)
@@ -1057,7 +1039,6 @@ tiff("./plots/diversity.tiff", width = 5*350, height = 5*300, res = 300, pointsi
 clonalDiversity(comb2, cloneCall = "nt")
 dev.off()
 library(scRepertoire)
-
 CD8_list <- SplitObject(CD8, split.by = "group_id")
 
 tiff("./plots/occupiedResp.tiff", width = 5*450, height = 5*150, res = 300, pointsize = 5)     
@@ -1168,3 +1149,5 @@ dev.off()
 tiff("./plots/UMAP.tiff", width = 8*150, height = 5*150, res = 150, pointsize = 5)  
 DimPlot(CD8, reduction = "umap", label = TRUE)
 dev.off()
+
+save(CD8, file = "CD8_pap.rds")
