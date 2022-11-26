@@ -10,16 +10,15 @@
 
 
 rm(list = ls())
-
 library(cowplot)
 library(ggplot2)
 library(Seurat)
 library(SingleCellExperiment)
 library(scRepertoire)
 
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-load("scRNAseq_step1.rds")
-
+setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
+sce <- readRDS("scRNAseq_step1_test.rds")
+readRDS(file.choose())
 sobj <- CreateSeuratObject(
   counts = counts(sce),
   meta.data = data.frame(colData(sce)),
@@ -28,6 +27,9 @@ sobj <- CreateSeuratObject(
 # split by batch
 cells_by_batch <- split(colnames(sce), sce$batch)
 so.list <- lapply(cells_by_batch, function(i) subset(sobj, cells = i))
+
+CD8.comp <- NormalizeData(CD8, normalization.method = "RC", scale.factor = 10000)
+colnames(CD8.comp@assays$RNA@data)
 
 # normalize, find variable genes, and scale
 so.list <- lapply(so.list, NormalizeData, verbose = FALSE)
@@ -56,12 +58,9 @@ sobj <- RunUMAP(sobj, reduction = "pca", dims = seq_len(20),
 DimPlot(sobj, reduction = "pca", group.by = "batch")
 DimPlot(sobj, reduction = "umap", group.by = "batch", split.by = "group_id")
 
-
-DimPlot(sobj, reduction = "tsne", group.by = "batch")
-
 # Plot the elbow plot
 ElbowPlot(object = sobj, ndims = 30)
-?FindNeighbors
+
 #Clustering
 sobj <- FindNeighbors(sobj, reduction = "pca", dims = seq_len(20), verbose = FALSE)
 sobj <- FindClusters(object = sobj, random.seed = 1, resolution = c(0.1, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 2))
@@ -74,7 +73,7 @@ a2
 #Add clonotype data
 
 #Load data
-contig_dir <- paste0(getwd(), "/data_VDJ/")
+contig_dir <- paste0(getwd(), "/../data_VDJ/")
 files <- as.vector(list.files(contig_dir, pattern = "*.csv"))
 
 # List contig files
@@ -94,10 +93,11 @@ combined <- combineTCR(contig_list,
 combined <- addVariable(combined, name = "batch", 
                         variables = c("b2", "b1", "b2", "b2", "b3", "b2", "b1", "b2", "b2", "b3"))
 
-sobj <- combineExpression(combined, sobj)
+sobj <- combineExpression(combined, sobj, 
+                            proportion = FALSE, 
+                            cloneTypes=c(Single=1, Small=5, Medium=20, Large=100, Hyperexpanded=500))
 
 #Organizing the order of the factor cloneType
-sobj@meta.data$cloneType <- factor(sobj@meta.data$cloneType, levels = c("Hyperexpanded (100 < X <= 500)", "Large (20 < X <= 100)", "Medium (5 < X <= 20)", "Small (1 < X <= 5)", "Single (0 < X <= 1)", NA))
 update_geom_defaults("point", list(stroke=0.5))
 colorblind_vector <- colorRampPalette(c("#FF4B20", "#FFB433", "#C6FDEC", "#7AC5FF", "#0348A6"))
 DimPlot(sobj, reduction = "umap", group.by = "cloneType") + scale_color_manual(values = c(colorblind_vector(5)), na.value="grey")
@@ -112,4 +112,4 @@ ggplot(x, aes(x=Var1, y=Freq, fill = Var2)) +
   scale_fill_manual(values = colorblind_vector(5), na.value="grey") +
   theme_classic()
 
-save(sobj, file = "scripts/scRNAseq_step2.rds")
+saveRDS(sobj, file = "scRNAseq_step2_test.rds")

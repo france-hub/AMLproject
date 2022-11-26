@@ -26,7 +26,7 @@ library(LSD)
 library(Matrix)
 
 #Set working directory where the script is located
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
 
 #Load raw counts for all the experiments (each dir contains the files barcodes.tsv, features.tsv, matrix.mtx for each patient)
 dirs <- list.dirs("data_scRNAseq", recursive = FALSE, full.names = TRUE)
@@ -43,15 +43,15 @@ names(rowData(sce)) <- c("ENSEMBL", "SYMBOL")
 names(colData(sce)) <- c("sample_id", "barcode")
 sce$sample_id <- factor(basename(sce$sample_id))
 dimnames(sce) <- list(
-  with(rowData(sce), paste(ENSEMBL, SYMBOL, sep = ".")), 
+  with(rowData(sce), SYMBOL), 
   with(colData(sce), paste(sample_id, barcode, sep = "_")))
 
 #load metadata and add to sce object
 md <- file.path("../md_dir", "metadata.xlsx")
 md <- read_excel(md)
-m <- match(sce$sample_id, md$`Sample ID`)
-sce$group_id <- md$Response[m]
-sce$timepoint <- md$Timepoint[m]
+m <- match(sce$sample_id, md$sample_id)
+sce$group_id <- md$group_id[m]
+sce$timepoint <- md$timepoint[m]
 sce$RespTmp <- md$RespTmp[m]
 sce$ELN <- md$ELN[m]
 sce$batch <- md$Batch[m]
@@ -149,4 +149,4 @@ sce <- sce[rowSums(counts(sce) > 1) >= 20, ]
 #Dimension sce after filtering
 dim(sce)
 
-save(sce, file = "scripts/scRNAseq_step1.rds")
+saveRDS(sce, file = "scRNAseq_step1_test.rds")
