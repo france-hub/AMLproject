@@ -1,5 +1,7 @@
-# AMLproject_scRNAseq
-scRNAseq in AML patients and HD
+# AMLproject
+Type of data: flow cytometry, scRNAseq, spectral flow cytometry
+
+scRNAseq
 # scRNAseq_step1
 This script is on preprocessing of scRNAseq data. Later on I'll use Seurat to analyze my data. Here though I use singlecellexperiment because it allows me to use the doubletfinder package (https://github.com/chris-mcginnis-ucsf/DoubletFinder). 
 In summary the script does the followings:
