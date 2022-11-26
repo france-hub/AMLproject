@@ -1,5 +1,4 @@
 ##STEP4: CD8
-
 rm(list = ls())
 
 library(Seurat)
@@ -42,8 +41,6 @@ library(SCpubr)
 library(scry)
 library(compassR)
 library(tidyverse)
-library(VISION)
-library(scmdbolism)
 
 setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
 CD8 <-readRDS("CD8sub_test.rds")
@@ -93,14 +90,6 @@ tiff("../plots_CD8/cd8clus.tiff", width = 5*200, height = 5*200, res = 300, poin
 p.cd8
 dev.off()
 
-###Visualize single markers and scores distributions
-#Check they are CD8
-p.cd8 <- FeaturePlot(CD8, "CD8A") + scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")),
-                                                  breaks=c(0.25, 3.9), label = c("Min", "Max"))
-
-#Check there are no CD4
-FeaturePlot(CD8, "CD4") 
-
 #DotPlot
 features <- c("CCR7", "TCF7", "LEF1", "SELL", "IL7R", "SLAMF6", 
               "CXCR3", "GZMK", "CCL3", "CCL4", "CCL5", "XCL1", 
@@ -117,23 +106,21 @@ DotPlot_scCustom(CD8, features, colors_use = pal_exp, x_lab_rotate = TRUE) +
 dev.off()
 
 #Scores
-naive <- c("TCF7", "CCR7", "SELL", "LEF1")
-CD8 <- AddModuleScore(CD8, features = naive, name = "naive")
-
-GI7 <- c("GZMK", "IL7R")
-CD8 <- AddModuleScore(CD8, features = GI7, name = "GI7")
-
-MAIT <- c("TRAV1-2", "SLC4A10")
-MAIT <- AddModuleScore(CD8, features = MAIT, name = "MAIT")
-
-#Scores
 #signatures
 sig <- readxl::read_xlsx("../signatures/sig.xlsx", sheet = 1)
 sig_naive <- list(sig$`Naive (from Szabo et al. 2019)`[!is.na(sig$`Naive (from Szabo et al. 2019)`)])
 CD8 <- AddModuleScore(CD8, features = sig_naive, name = "sig_naive")
 p.naive <- FeaturePlot(CD8, "sig_naive1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position="none") +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), breaks=c(0.03, 0.18), label = c("Min", "Max")) +   
   ggtitle("Naive (from Szabo et al. 2019)") + theme(plot.title = element_text(size = 15, face = "bold"))
+p.naive
+
+#get legend to be used later on (same scale palette)
+#get the legend from plot with same scale palette
+legend <- get_legend(
+  p.naive + theme(legend.box.margin = margin(0, 0, 0, 12), legend.position = "bottom",
+                legend.justification = "center") 
+)
 
 sig_stem <- list(sig$`Stemness (from Pace et al. 2018)`[!is.na(sig$`Stemness (from Pace et al. 2018)`)])
 CD8 <- AddModuleScore(CD8, features = sig_stem, name = "sig_stem")
@@ -142,7 +129,7 @@ p.stem <- FeaturePlot(CD8, "sig_stem1", pt.size = 0.000001, order = T, min.cutof
   ggtitle("Stemness (from Pace et al. 2018)") + theme(plot.title = element_text(size = 15, face = "bold"))
 
 #Bulk senescence signature
-genes <- readxl::read_xlsx("../signatures/Model_5_results.xlsx", sheet = 2)
+genes <- readxl::read_xlsx("../signatures/sig.xlsx", sheet = 2)
 sen <- list(genes$gene_name[1:100])
 CD8 <- AddModuleScore(CD8, features = sen, name = "sen")
 genes$gene_name[1:100][(genes$gene_name[1:100] %in% rownames(CD8))]
@@ -158,32 +145,13 @@ plot_grid(p.sen, legend, ncol = 1, rel_heights = c(1, .1))
 dev.off()
 
 #Signature dysfunction June et al.
-dys.genes <- readxl::read_xlsx("../signatures/Dysfunction.xlsx")
-dys <- list(dys.genes$Dysfunction)
+dys.genes <- readxl::read_xlsx("../signatures/sig.xlsx", sheet = 1)
+dys <- list(dys.genes$`Dysfunction (Good et al. 2021)`)
 CD8 <- AddModuleScore(CD8, features = dys, name = "dys")
 p.dys <- FeaturePlot(CD8, features = "dys1", pt.size = 0.1, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   theme(legend.position="none") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")),
                          breaks=c(0.09, 0.42), label = c("0", "Maximum")) 
-
-nk_l <- readxl::read_xlsx("../signatures/Dysfunction.xlsx", sheet = 2)
-nk_l <- list(nk_l$`NK-like`)
-CD8 <- AddModuleScore(CD8, features = nk_l, name = "nk_l")
-p.nk_l<- FeaturePlot(CD8, features = "nk_l1", pt.size = 0.1, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
-  theme(legend.position="none") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")),
-                         breaks=c(0.09, 0.42), label = c("0", "Maximum")) 
-
-prolif <- list(c("ZWINT", "E2F1", "FEN1", "FOXM1", "H2AFZ", "HMGB2", "MCM2", 
-                 "MCM3", "MCM4", "MCM5", "MCM6", "MKI67", "MYBL2", "PCNA", 
-                 "PLK1", "CCND1", "AURKA", "BUB1", "TOP2A", "TYMS", "DEK", "CCNB1", 
-                 "CCNE1"))
-CD8 <- AddModuleScore(CD8, features = prolif, name = "prolif")
-p.pro <- FeaturePlot(CD8, features = "prolif1", pt.size = 0.1, order = T,  min.cutoff = "q10", max.cutoff = "q90")
-md <- CD8@meta.data
-md <- md %>% mutate(Proliferative = case_when(prolif1 > 0 ~ 'Proliferative',
-                                                   TRUE ~ "Not Proliferative"))
-CD8@meta.data <- md
 
 tiff("../plots_CD8/scores_dys.tiff", width = 5*180, height = 5*200, res = 300, pointsize = 5)     
 p.dys <- p.dys + theme_void() + theme(legend.position = "none") + ggtitle("Dysfunction score (Good et al. 2021)") + 
@@ -191,6 +159,7 @@ p.dys <- p.dys + theme_void() + theme(legend.position = "none") + ggtitle("Dysfu
 plot_grid(p.dys, legend, ncol = 1, rel_heights = c(1, .2))
 dev.off()
 
+#Distribution of senescence an disfunction across the 12 clusters
 md <- CD8@meta.data %>% rename(sen1 = "Senescence", dys1 = "Dysfunction")
 colnames(md)
 CD8@meta.data <- md
@@ -218,11 +187,10 @@ extract_max<- function(p){
   return(ceiling(ymax))
 }
 
-## main function
+##Function for stacked violin
 StackedVlnPlot<- function(obj, features,
                           pt.size = 0, 
                           plot.margin = unit(c(-0.75, 0, -0.75, 0), "cm"),
-                          colors_use = colors_use,
                           ...) {
   
   plot_list<- purrr::map(features, function(x) modify_vlnplot(obj = obj,feature = x, ...))
@@ -230,9 +198,10 @@ StackedVlnPlot<- function(obj, features,
   # Add back x-axis title to bottom plot. patchwork is going to support this?
   plot_list[[length(plot_list)]]<- plot_list[[length(plot_list)]] +
     theme(axis.text.x=element_text(), axis.ticks.x = element_line())
+  
   # change the y-axis tick to only max value 
   ymaxs<- purrr::map_dbl(plot_list, extract_max)
-  plot_list<- purrr:Light rail station:map2(plot_list, ymaxs, function(x,y) x + 
+  plot_list<- purrr::map2(plot_list, ymaxs, function(x,y) x + 
                             scale_y_continuous(breaks = c(y)) + 
                             expand_limits(y = y))
   
@@ -251,7 +220,7 @@ data$Dysfunction <- CD8$Dysfunction
   
 data$pc <- predict(prcomp(~Senescence+Dysfunction, data))[,1]
 
-#Nicer picture
+#Corr plot
 tiff("../plots_CD8/corr.tiff", width = 5*200, height = 5*200, res = 300, pointsize = 5)     
 ggplot(data, aes(x = Senescence, y = Dysfunction, color = pc)) +
   geom_point(shape = 16, size = 3, alpha = .4) +
@@ -263,7 +232,7 @@ ggplot(data, aes(x = Senescence, y = Dysfunction, color = pc)) +
         plot.title = element_text(hjust = 0.5))
 dev.off()
 
-#Plots for figure 2
+#Plot single markers
 p <-FeaturePlot(CD8, features = c("TCF7", "IL7R", "GZMK", "CD69", "PDCD1", "GZMB", "PRF1", "GNLY"), combine=F, pt.size=0.00001, order=T) 
 
 for(i in 1:length(p)) {
@@ -271,19 +240,13 @@ for(i in 1:length(p)) {
     scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position = "none")
 }
 
-#get the legend from plot with same scale palette
-legend <- get_legend(
-  p.cd8 + theme(legend.box.margin = margin(0, 0, 0, 12), legend.position = "bottom",
-                legend.justification = "center") 
-)
-
 tiff("../plots_CD8/p.markers.umap.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 p.markers <- cowplot::plot_grid(plotlist = p, nrow =2)
 p.mar_leg <- plot_grid(p.markers, legend, ncol = 1, rel_heights = c(1, .1))
 p.mar_leg
 dev.off()
-
-#DGE all markers
+ 
+#DGE all markers (top10 markers)
 mark <- FindAllMarkers(CD8)
 mark %>% dplyr::filter(!str_detect(rownames(mark), "^RP[SL]")) %>% 
   group_by(cluster) %>%
@@ -323,7 +286,6 @@ mat <- do.call("rbind", m_by_clus)
 
 #Z-score
 mat <- t(scale(t(mat)))
-
 mat <- mat %>% as.data.frame() %>%  select(names(all_m)) %>% as.matrix()
 
 lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
@@ -342,9 +304,37 @@ p <- draw(h.heat.NoAnnot, heatmap_legend_side = "bottom", align_heatmap_legend =
 p
 dev.off()
 
+#Coexp gene matrix
+mat <- cor(t(as.matrix(CD8@assays$RNA@data[VariableFeatures(CD8)[1:500],])),method = "spearman")
+mat_corr <- mat
+diag(mat_corr) <- 0 #give 0 to the diagonal
+q <- quantile(mat_corr, probs = .99)
+mat2 <-mat_corr %>% 
+  as.data.frame() %>% 
+  mutate(Res = ifelse(rowSums(mat_corr >= q) > 0, "Yes", "No"))
+mat2 <- mat2 %>% filter(Res == "Yes")
+mat2 <- mat2 %>% filter(!str_detect(rownames(mat2), "^RP[SL]"))
+rownames(mat2)
+
+position <- which(rownames(mat) %in% rownames(mat2)[152:169])
+row_an <- rowAnnotation(Genes = anno_mark(at = which(rownames(mat) %in% rownames(mat2)[152:169]),
+                                          labels = rownames(mat)[position],
+                                          labels_gp = gpar(fontsize = 7),
+                                          link_width = unit(2.5, "mm"),
+                                          padding = unit(1, "mm"),
+                                          link_gp = gpar(lwd = 0.5)))
+tiff("../plots_CD8/h.coexp.tiff", width = 5*250, height = 5*200, res = 300, pointsize = 5)     
+ht <- Heatmap(mat, name = "Spearman correlation",
+              column_names_gp = grid::gpar(fontsize = 0),
+              row_names_gp = grid::gpar(fontsize = 0),
+              right_annotation = row_an,
+              heatmap_legend_param = list(legend_direction = "horizontal")) 
+draw(ht, heatmap_legend_side = "bottom")
+dev.off()
+
+
+#clean workspace
 rm(list=setdiff(ls(), "CD8"))
-p.umap <- DimPlot(CD8, label = T)
-cowplot::plot_grid(p.umap, p.vln)
 
 CD8 <- RenameIdents(CD8,
                     "0" = "Naive",
@@ -364,6 +354,7 @@ CD8 <- RenameIdents(CD8,
 #Add clusters variable to mddata
 CD8$clusters<- CD8@active.ident
 
+#Cluster distribution across all samples
 tiff("../plots_CD8/barplotCD8.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
 ggplot(CD8@meta.data, aes(x=clusters, fill=sample_id)) + geom_bar(position = "fill") + theme_bw() + 
   scale_fill_manual(values= pal_ident) + xlab("") + ylab("") + coord_flip()
@@ -390,43 +381,6 @@ p.dens <- DimPlot(CD8.dens, reduction = 'umap', split.by = "RespTmp")  + NoLegen
 p.dens +  geom_density_2d_filled(p.dens$data, mapping = aes(x = p.dens$data[,"UMAP_1"], y = p.dens$data[,"UMAP_2"]), contour_var = "ndensity") + 
   facet_wrap(vars(RespTmp), nrow = 1)
 dev.off()
-
-#Look for antigen specific
-#neoTCR
-DefaultAssay(CD8) <- "RNA"
-neoT <- readxl::read_xlsx("../signatures/neoTCR.xlsx", sheet = 2)
-neoT <- list(neoT$Gene)
-CD8 <- AddModuleScore(CD8, features = neoT, name = "neoT", random.seed = 1)
-neoT <- FeaturePlot_scCustom(CD8, features = "neoT1", pt.size = 0.0000001, order = TRUE, 
-                             colors_use = c("lightgrey", "darkred"), na_cutoff = 0.4) +
-  ggtitle("") + NoLegend() + NoAxes()
-
-tiff("../plots_CD8/featNeoTCR8.tiff", width = 5*150, height = 5*150, res = 150, pointsize = 5)     
-neoT
-dev.off()
-
-#Relative abundance of the each clusters per condition (How to check for "significance"? What test should we apply?)
-freq_table <- table(CD8@active.ident, CD8$group_id)
-fqs <- prop.table(table(CD8@active.ident, CD8$sample_id), 2)
-df <- set_colnames(reshape2::melt(fqs), c("cluster_id", "sample_id", "frequency"))
-df$group_id <- CD8$group_id[match(df$sample_id, CD8$sample_id)]
-View(df)
-tiff("../plots/box.tiff", width = 5*250, height = 5*40, res = 150, pointsize = 5)     
-p.box <- ggplot(df, aes(x = group_id, y = frequency, color = group_id)) +
-  labs(x = NULL, y = "Proportion [%]") +
-  theme_bw() + theme(
-    panel.grid = element_blank(),
-    strip.text = element_text(face = "bold"),
-    strip.background = element_rect(fill = NA, color = NA),
-    axis.text = element_text(color = "black"),
-    axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1),
-    legend.key.height  =  unit(0.8, "lines")) +
-  geom_boxplot(aes_string(color = "group_id", fill = "group_id"), position = position_dodge(), alpha = 0.2, 
-               outlier.color = NA, show.legend = FALSE) + 
-  geom_point(aes_string(x = "group_id", col = "group_id"), position = position_jitter(width = 0.2)) +
-  facet_wrap(~ cluster_id, scales = "free_y", ncol = 6) +
-  theme_classic()
-p.box + ggtitle("Differential abundance")  + theme(plot.title = element_text(hjust = 0.5))
 
 #Differential abundance testing
 #Permutation test 
@@ -496,7 +450,7 @@ fdr_pal <- c("blue", "red3")
 names(fdr_pal) <- levels(s)
 F_pal <- c("blue",  "red3")
 F_lims <- range(df.anova$Fstat)
-F_brks <- c(0, f_lims[2])
+F_brks <- c(0, F_lims[2])
 Fstat = df.anova$Fstat
 anno_cols <- list(Fstat = colorRamp2(F_brks, F_pal))
 anno_cols$significant <- fdr_pal
@@ -594,19 +548,6 @@ tiff("../plots_CD8/stem_cna.tiff", width = 5*300, height = 5*200, res = 300, poi
 p.stem.cna + theme_void(base_size = 18) + theme(legend.position = "none")
 dev.off()
 
-genes <- readxl::read_xlsx("../signatures/Model_5_results.xlsx", sheet = 2)
-sen <- list(genes$gene_name[1:100])
-CD8.cna <- AddModuleScore(CD8.cna, features = sen, name = "sen")
-p.sen.cna <- FeaturePlot(CD8.cna, features = "sen1", pt.size = 0.1, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
-  theme(legend.position="none") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")),
-                         breaks=c(0.09, 0.42), label = c("0", "Maximum")) + 
-  ggtitle("Senescence score") + theme(plot.title = element_text(size = 15, face = "bold"))
-
-tiff("../plots/cna.tiff", width = 5*800, height = 5*400, res = 300, pointsize = 5)     
-plot_grid(p1,p2,p3, p.naive.cna, p.stem.cna, p.sen.cna)
-dev.off()
-
 #Look at local densities
 use_condaenv("~/miniconda3/")
 # make sure reticulate package can find correct version of "umap" model of python
@@ -701,8 +642,6 @@ h.heat.cust <- Heatmap(mat,
                        heatmap_legend_param = lgd_aes,
                        column_names_gp = gpar(fontsize = 15))
 
-
-
 tiff("../plots_CD8/p.heat_custom.tiff", width = 5*200, height = 5*400, res = 300, pointsize = 5)     
 draw(h.heat.cust, heatmap_legend_side = "bottom", align_heatmap_legend = "heatmap_center", 
      show_annotation_legend = FALSE)
@@ -712,26 +651,6 @@ dev.off()
 #DGE all markers
 mark <- FindAllMarkers(CD8)
 
-#signatures for TCGA
-#top20
-mark %>% filter(!str_detect(rownames(mark), "^RP[SL]")) %>% 
-  group_by(cluster) %>%
-  top_n(n = 20, wt = avg_log2FC) -> top20
-df20 <- data.frame(top20$cluster, top20$gene)
-df20  <-  reshape(transform(df20, indx = ave(as.character(top20.cluster), top20.cluster, FUN = seq)), 
-                idvar = "indx", timevar = "top20.cluster", direction = "wide") %>% select(-indx)
-colnames(df20) <- gsub("top20.gene.", "", colnames(df))
-
-#top50
-mark %>% filter(!str_detect(rownames(mark), "^RP[SL]")) %>% 
-  group_by(cluster) %>%
-  top_n(n = 50, wt = avg_log2FC) -> top50
-df50 <- data.frame(top50$cluster, top50$gene)
-df50  <-  reshape(transform(df50, indx = ave(as.character(top50.cluster), top50.cluster, FUN = seq)), 
-                idvar = "indx", timevar = "top50.cluster", direction = "wide") %>% select(-indx)
-colnames(df50) <- gsub("top50.gene.", "", colnames(df))
-writexl::write_xlsx(df20, path="top20.xlsx")
-writexl::write_xlsx(df50, path="top50.xlsx")
 #top10
 mark %>% dplyr::filter(!str_detect(rownames(mark), "^RP[SL]")) %>% 
   group_by(cluster) %>%
@@ -853,6 +772,7 @@ p.sig <- plot_grid(p.naive, p.stl, p.actex, p.sl, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
 
+#DGE by condition
 Idents(CD8) <- "group_id"
 mark.cond <- FindAllMarkers(CD8)
 
@@ -879,89 +799,6 @@ Clustered_DotPlot(CD8, all_markers, colors_use_exp = pal_exp, group.by = "group_
                   x_lab_rotate = TRUE, k =2)
 dev.off()
 
-#Correlation Heatmap
-custom_colors <- c(pal_exp)
-
-# calculate average expression value for all variable genes for each cluster
-average_expression_profiles_by_cluster <- CD8@assays$RNA@data[CD8@assays$RNA@var.features,] %>%
-  t() %>%
-  as.matrix() %>%
-  as_tibble() %>%
-  mutate(cluster = CD8@meta.data$clusters) %>%
-  select(cluster, everything()) %>%
-  group_by(cluster) %>%
-  summarize_all(~mean(.))
-
-# calculate Spearman correlation matrix
-correlation_matrix <- average_expression_profiles_by_cluster %>%
-  select(-1) %>%
-  as.matrix() %>%
-  t() %>%
-  cor(method = 'spearman')
-
-# assign row and column names
-rownames(correlation_matrix) <- levels(CD8@meta.data$clusters)
-colnames(correlation_matrix) <- levels(CD8@meta.data$clusters)
-
-# save cluster names for later
-cluster <- rownames(correlation_matrix)
-
-# assign a color to each cluster
-colors_for_clusters <- c(pal_ident[1:length(cluster)])
-names(colors_for_clusters) <- cluster
-
-# create annotation function
-func_cell_cluster <- function(i, j, x, y, width, height, fill) {
-  grid.text(cluster[j], x = x, y = y, gp = gpar(fontsize = 8))
-}
-
-# create main heatmap
-ht_matrix <- Heatmap(
-  correlation_matrix,
-  name = 'Spearman\ncorrelation',
-  cluster_rows = TRUE,
-  cluster_columns = TRUE,
-  show_row_names = TRUE,
-  show_column_names = TRUE,
-  heatmap_legend_param = list(
-    title = 'Spearman correlation',
-    legend_height = unit(2, 'cm'),
-    legend_width = unit(1, 'cm')
-  )
-)
-
-tiff("../plots/p.corr.tiff", width = 5*250, height = 5*250, res = 300, pointsize = 5)     
-ht_matrix 
-dev.off()
-
-#Coexp gene matrix
-mat <- cor(t(as.matrix(CD8@assays$RNA@data[VariableFeatures(CD8)[1:500],])),method = "spearman")
-mat_corr <- mat
-diag(mat_corr) <- 0 #give 0 to the diagonal
-q <- quantile(mat_corr, probs = .99)
-mat2 <-mat_corr %>% 
-  as.data.frame() %>% 
-  mutate(Res = ifelse(rowSums(mat_corr >= q) > 0, "Yes", "No"))
-mat2 <- mat2 %>% filter(Res == "Yes")
-mat2 <- mat2 %>% filter(!str_detect(rownames(mat2), "^RP[SL]"))
-rownames(mat2)
-
-position <- which(rownames(mat) %in% rownames(mat2)[152:169])
-row_an <- rowAnnotation(Genes = anno_mark(at = which(rownames(mat) %in% rownames(mat2)[152:169]),
-                                          labels = rownames(mat)[position],
-                                          labels_gp = gpar(fontsize = 7),
-                                          link_width = unit(2.5, "mm"),
-                                          padding = unit(1, "mm"),
-                                          link_gp = gpar(lwd = 0.5)))
-tiff("../plots_CD8/h.coexp.tiff", width = 5*250, height = 5*200, res = 300, pointsize = 5)     
-ht <- Heatmap(mat, name = "Spearman correlation",
-        column_names_gp = grid::gpar(fontsize = 0),
-        row_names_gp = grid::gpar(fontsize = 0),
-        right_annotation = row_an,
-        heatmap_legend_param = list(legend_direction = "horizontal")) 
-draw(ht, heatmap_legend_side = "bottom")
-dev.off()
-
 #Identify cell cycling cells
 s.genes <- cc.genes$s.genes
 g2m.genes <- cc.genes$g2m.genes
@@ -976,48 +813,20 @@ dev.off()
 
 freq_table <- CD8cc[[]]
 colnames(freq_table)
-freq_table <- freq_table[,c("group_id", "clusters2", "Phase")]
+freq_table <- freq_table[,c("group_id", "clusters", "Phase")]
 freq_table <- subset(freq_table, Phase != "Undecided") #removing undecided phases
 freq_table <- freq_table %>%
-  group_by(group_id, clusters2, Phase) %>%
+  group_by(group_id, clusters, Phase) %>%
   summarise(n = n())
 freq_table$Phase <- factor(freq_table$Phase, levels = c("G1", "G2M", "S")) #ordering phases
 
 tiff("../plots/ccAbund.tiff", width = 5*150, height = 5*100, res = 300, pointsize = 5)     
-ggplot(freq_table, aes(x=clusters2, y=n, fill=Phase)) + 
+ggplot(freq_table, aes(x=clusters, y=n, fill=Phase)) + 
   labs(x = NULL, y = NULL)+
   stat_summary(geom="bar", position="fill", color="black", lwd=0.25) + 
   theme(axis.title.x = element_blank()) + 
   theme_classic() + coord_flip()
 dev.off()
-
-#Condition DE within cluster(Try also https://github.com/egarren/scTfh/blob/main/code/01_gex.R)
-CD8$celltype.group <- paste(CD8$clusters, CD8$group_id, sep = "_")
-Idents(CD8) <- "celltype.group"
-clusters <- levels(CD8$clusters)
-df <- list()
-for (i in clusters){
-  Idents(CD8) <- "celltype.group" #setting idents to new mddata column
-  df[[i]] <- FindMarkers(CD8, ident.1 = paste0(i,"_Res"), ident.2 = paste0(i,"_NonRes"), 
-                    min.pct=0,logfc.threshold = -Inf, base =2)
-}
-
-p.volc <- lapply(df, function(x)
-  EnhancedVolcano(x,
-                  lab = rownames(x),
-                  x = "avg_log2FC",
-                  y = 'p_val_adj',
-                  xlab = bquote(~Log[2]~ 'fold change'),
-                  pCutoff = 0.05,
-                  FCcutoff = 1,
-                  labSize = 6.0,
-                  colAlpha = 1,
-                  legendPosition = 'right',
-                  legendLabSize = 12,
-                  legendIconSize = 4.0,
-                  drawConnectors = TRUE,
-                  widthConnectors = 0.75))
-
 
 #Drivers of SL and Tex
 CD8.new <- CD8
@@ -1176,8 +985,10 @@ sce.dev <- sce.dev[1:1000,] #one thousand genes with highest deviance
 genes <- which(rownames(sceCD8) %in% rownames(sce.dev))
 sce.gam <- fitGAM(counts = counts(sceCD8), sds = sds, nknots = 5, verbose = TRUE, 
                   genes = genes, BPPARAM = BPPARAM)
-saveRDS(sce.gam, "scegam.rds")
-sce.gam <- readRDS("scegam.rds")
+#Save
+#saveRDS(sce.gam, "scegam.rds")
+#sce.gam <- readRDS("scegam.rds")
+
 # plot our Slingshot lineage trajectories, this time illustrating the new tradeSeq knots
 tiff("./plots/traj.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 plotGeneCount(curve = sds, counts = counts,
@@ -1284,6 +1095,8 @@ dev.off()
 genes <- rownames(patternRes)[oPat]
 df.tr <- predictSmooth(sce.gam, gene = genes, tidy = FALSE)
 df <- as.data.frame(df.tr)
+
+#sl = senescent-like; ae = activated-exhausted
 df.ls <- map(set_names(c("lineage1", "lineage2")),~select(df,starts_with(.x)))
 mat.sl <- df.ls$lineage1 
 mat.sl <- mat.sl %>% filter(!str_detect(rownames(mat.sl), "^RP[SL]|^MT-")) %>% 
@@ -1872,49 +1685,6 @@ out <- SCpubr::do_TFActivityPlot(sample = CD8,
 p <- out$heatmaps$average_scores
 p
 
-#Velocity
-#Load in the files
-ld.list <- list.files("../velocity", pattern = "loom", all.files = TRUE)
-ld <- lapply(ld.list, function(x){
-  ReadVelocity(paste0("../velocity/", x))
-})
-ld.list <- gsub(".loom", "_", ld.list)
-
-#Rename colnames for each object according to the colnames of the integrated CD8 object
-so <- lapply(ld, as.Seurat)
-so <- lapply(so, function(x) RenameCells(x, new.names = gsub("x", "-1", colnames(x)), for.merge = T))
-so <- lapply(so, function(x) RenameCells(x, new.names = gsub(".*:", "", colnames(x)), for.merge = T))
-so <-  lapply(seq_along(ld.list), function(y) RenameCells(so[[y]], new.names = paste0(ld.list[[y]], colnames(so[[y]]))))
-
-#Merge the objects
-som <- merge(so[[1]], so[-(1)], merge.data = TRUE)
-
-# Extract only the intersection
-som <- som[, intersect(colnames(CD8), colnames(som[, colnames(CD8)]))] # This works
-
-#Create the specific assays
-spliced <- CreateAssayObject(GetAssayData(som, assay = "spliced"))
-unspliced <- CreateAssayObject(GetAssayData(som, assay = "unspliced"))
-ambiguous <- CreateAssayObject(GetAssayData(som, assay = "ambiguous"))
-
-#Import the assays in the original CD8 object
-CD8[["spliced"]] <- spliced
-CD8[["unspliced"]] <- unspliced
-CD8[["ambiguous"]] <- ambiguous
-
-#Assign the spliced assay to the RNA assay and put it as default
-CD8[['RNA']] <- CD8[["spliced"]]
-DefaultAssay(CD8) <- "RNA"
-CD8@active.ident <- CD8$clusters
-DimPlot(CD8)
-md <- CD8@meta.data
-md$clusters <- as.vector(md$clusters)
-md$clusters2 <- as.vector(md$clusters2)
-CD8@meta.data <- md
-CD8.velo <- CD8
-SaveH5Seurat(CD8, filename = "CD8_veloscv.h5Seurat")
-Convert("CD8_veloscv.h5Seurat", dest = "h5ad") 
-
 #Clonotype for scirpy
 CD8.clono <- CD8
 CD8.clono <- subset(CD8.clono, subset = group_id == "HD", invert = TRUE)
@@ -1929,27 +1699,11 @@ SaveH5Seurat(pbmc3k.final, filename = "pbmc3k.h5Seurat")
 Convert("pbmc3k.h5Seurat", dest = "h5ad")
 
 #Clonotype analysis
-#Load data
-contig_dir <- paste0(getwd(), "/../data_VDJ/")
-files <- as.vector(list.files(contig_dir, pattern = "*.csv"))
-
-# List contig files
-contig_list <- list()
-for (i in seq_along(files)){
-  contig_list[[i]] <- read.csv(paste0(contig_dir, files[[i]]))
-}
-
-View(contig_list[[1]])
-
-# Combine TCR data and add to Seurat object
-combined <- combineTCR(contig_list, 
-                       samples = c("p219", "p229", "p264", "pV03", "pV09", "p219", "p229", "p264", "pV03", "pV09"), 
-                       ID = c(rep("base", 5), rep("post", 5)), 
-                       cells = "T-AB")
-
 #Delete HD (we have VDJ only for responders and nonresponders)
 CD8.clono <- subset(CD8, group_id %in% c("Res", "NonRes"))
 md <- CD8.clono@meta.data
+
+#Define hyper and large as expanded, all the others as not expanded
 md <- md %>% mutate(`Clonal expansion` = case_when(cloneType %in% c("Hyperexpanded (100 < X <= 500)","Large (20 < X <= 100)") ~ 'Expanded',
                                            TRUE ~ "Not Expanded"))
 CD8.clono@meta.data <- md
@@ -1957,12 +1711,6 @@ CD8.clono$`Clonal expansion` %>% as.factor()
 tiff("../plots_CD8/clonalExp.tiff", width = 5*300, height = 5*250, res = 300, pointsize = 5)     
 DimPlot_scCustom(CD8.clono, group.by = "Clonal expansion", colors_use =  c("lightgrey", "darkred"), order = c("Expanded", "Not Expanded"),
                  pt.size = 0.00001) + ggtitle("") + theme_void()
-dev.off()
-
-tiff("../plots_CD8/alluv.tiff", width = 5*250, height = 5*150, res = 300, pointsize = 5)     
-alluvialClonotypes(CD8.clono, cloneCall = "gene", 
-                   y.axes = c("clusters", "group_id"), 
-                   color = "clusters2") 
 dev.off()
 
 tiff("../plots_CD8/clonoContour.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
@@ -1996,11 +1744,11 @@ occrep_Nres.bas <- occrep[[3]] + ggtitle ("NonRes_bas") + theme(plot.title = ele
                                                                 axis.text.x = element_text(size = 15),
                                                                 axis.text.y = element_text(size = 15),
                                                                 legend.text=element_text(size=15)) 
-occrep_Nres.post <- occrep[[4]] + ggtitle ("NonRes_post")+ theme(plot.title = element_text(hjust = 0.5, face = "bold", size 20),
-                                                                 legend.title=element_blank(),
-                                                                 axis.text.x = element_text(size = 15),
-                                                                 axis.text.y = element_text(size = 15),
-                                                                 legend.text=element_text(size=15))
+occrep_Nres.post <- occrep[[4]] + ggtitle ("NonRes_post")+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
+                                                                  legend.title=element_blank(),
+                                                                  axis.text.x = element_text(size = 20),
+                                                                  axis.text.y = element_text(size = 20),
+                                                                  legend.text=element_text(size=15))
 
 tiff("../plots_CD8/occrep.tiff", width = 5*850, height = 5*400, res = 300, pointsize = 5)     
 cowplot::plot_grid(occrep_res.bas, occrep_res.post, occrep_Nres.bas, occrep_Nres.post, nrow =2) 
@@ -2044,7 +1792,7 @@ p
 #df <- data.frame(x1 = -5.4, x2 = -0.4, y1 = -4.3, y2 = -0.2)
 #p +  geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), face = "bold", linetype = 2, data = df)
 dev.off()
-pal_ident
+
 cluster_stats <- Cluster_Stats_All_Samples(CD8, group_by_var = "group_id") %>%  
   mutate(freq_groupID = log10(Res/NonRes)) %>%  
   dplyr::filter(!str_detect("Total", Cluster))
@@ -2059,7 +1807,7 @@ cluster_stats %>% ggplot(aes(x=Cluster, y = freq_groupID)) +
   theme(legend.position = "none")+ colScale
 dev.off()
 
-CD8.clono <- subset(CD8, group_id %in% c("Res", "NonRes"))
+CD8.clono <- subset(CD8, group_id %in% c("Res", "NonRes")) #subset again to include clusters2 variable
 
 table.div <- StartracDiversity(CD8.clono, 
                        type = "group_id", 
@@ -2096,20 +1844,6 @@ p.exp <- ggplot(exp, aes(x=majorCluster, y=value)) +
 
 tiff("../plots_CD8/startrac.tiff", width = 5*83, height = 5*50, res = 150, pointsize = 5)     
 plot_grid(p.tran, p.exp, ncol = 2) 
-dev.off()
-
-df <- read.csv("l_time.csv")
-df <- df %>% arrange(factor(clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")))
-df$clusters2 <- factor(df$clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")) 
-
-tiff("../plots_CD8/jitt.tiff", width = 5*100, height = 5*60, res = 150, pointsize = 5)     
-ggplot(df, 
-       aes(x = latent_time, y = clusters2, colour = clusters2)) + geom_jitter(size = 0.0000001) +
-  guides(color = guide_legend(override.aes = list(size = 6))) +
-  scale_colour_manual(values = pal_ident[c(1,2,4,3,5)]) +
-  theme_classic() +
-  xlab("Latent Time") +
-  ylab("") + labs(col = "") +theme(legend.text=element_text(size=10))
 dev.off()
 
 DefaultAssay(CD8) <- "RNA"
@@ -2170,7 +1904,6 @@ idx <- which(rownames(mat) %in% c("KLRB1", "ANXA1", "ZNF683",
 colLab <- rep("black", nrow(mat))
 colLab[idx] <- "red"
 
-
 lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
                 title = "Expression")
 h.heat.sl1sl2 <- Heatmap(t(mat),
@@ -2205,4 +1938,62 @@ tiff("../plots_CD8/p.sl.umap.tiff", width = 5*200, height = 5*150, res = 300, po
 p.sl <- cowplot::plot_grid(plotlist = p, nrow =1)
 p.sl_leg <- plot_grid(p.sl, legend, ncol = 1, rel_heights = c(0.8, .1))
 p.sl_leg + plot_layout(heights = c(12.5,1.5))
+dev.off()
+
+#Velocity
+#Load in the files
+ld.list <- list.files("../velocity", pattern = "loom", all.files = TRUE)
+ld <- lapply(ld.list, function(x){
+  ReadVelocity(paste0("../velocity/", x))
+})
+ld.list <- gsub(".loom", "_", ld.list)
+
+#Rename colnames for each object according to the colnames of the integrated CD8 object
+so <- lapply(ld, as.Seurat)
+so <- lapply(so, function(x) RenameCells(x, new.names = gsub("x", "-1", colnames(x)), for.merge = T))
+so <- lapply(so, function(x) RenameCells(x, new.names = gsub(".*:", "", colnames(x)), for.merge = T))
+so <-  lapply(seq_along(ld.list), function(y) RenameCells(so[[y]], new.names = paste0(ld.list[[y]], colnames(so[[y]]))))
+
+#Merge the objects
+som <- merge(so[[1]], so[-(1)], merge.data = TRUE)
+
+# Extract only the intersection
+som <- som[, intersect(colnames(CD8), colnames(som[, colnames(CD8)]))] # This works
+
+#Create the specific assays
+spliced <- CreateAssayObject(GetAssayData(som, assay = "spliced"))
+unspliced <- CreateAssayObject(GetAssayData(som, assay = "unspliced"))
+ambiguous <- CreateAssayObject(GetAssayData(som, assay = "ambiguous"))
+
+#Import the assays in the original CD8 object
+CD8[["spliced"]] <- spliced
+CD8[["unspliced"]] <- unspliced
+CD8[["ambiguous"]] <- ambiguous
+
+#Assign the spliced assay to the RNA assay and put it as default
+CD8[['RNA']] <- CD8[["spliced"]]
+DefaultAssay(CD8) <- "RNA"
+CD8@active.ident <- CD8$clusters
+DimPlot(CD8)
+md <- CD8@meta.data
+md$clusters <- as.vector(md$clusters)
+md$clusters2 <- as.vector(md$clusters2)
+CD8@meta.data <- md
+CD8.velo <- CD8
+SaveH5Seurat(CD8, filename = "CD8_veloscv.h5Seurat")
+Convert("CD8_veloscv.h5Seurat", dest = "h5ad") 
+
+#import dataframe on latent time from scvelo and plot 
+df <- read.csv("l_time.csv")
+df <- df %>% arrange(factor(clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")))
+df$clusters2 <- factor(df$clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")) 
+
+tiff("../plots_CD8/jitt.tiff", width = 5*100, height = 5*60, res = 150, pointsize = 5)     
+ggplot(df, 
+       aes(x = latent_time, y = clusters2, colour = clusters2)) + geom_jitter(size = 0.0000001) +
+  guides(color = guide_legend(override.aes = list(size = 6))) +
+  scale_colour_manual(values = pal_ident[c(1,2,4,3,5)]) +
+  theme_classic() +
+  xlab("Latent Time") +
+  ylab("") + labs(col = "") +theme(legend.text=element_text(size=10))
 dev.off()
