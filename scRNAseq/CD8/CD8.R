@@ -1,16 +1,4 @@
 ##STEP4: CD8
-#This script does the followings:
-#Loads in the CD8 subset, find the most variable features, scale the data, run dimensionality reduction, run clustering
-#Plots single genes and scores to identify different subsets
-#Labels clusters and look at clusters abundancies
-
-###In progress
-#Trajectory inference
-#single cell pathway analysis
-#DGE along and across trajectories (TradeSeq)
-#DGE between conditions (condiments)
-#velocity inference
-#clonotype analysis
 
 rm(list = ls())
 
