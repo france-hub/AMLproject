@@ -18,7 +18,7 @@ library(scRepertoire)
 
 setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
 sce <- readRDS("scRNAseq_step1_test.rds")
-readRDS(file.choose())
+
 sobj <- CreateSeuratObject(
   counts = counts(sce),
   meta.data = data.frame(colData(sce)),
@@ -65,13 +65,7 @@ ElbowPlot(object = sobj, ndims = 30)
 sobj <- FindNeighbors(sobj, reduction = "pca", dims = seq_len(20), verbose = FALSE)
 sobj <- FindClusters(object = sobj, random.seed = 1, resolution = c(0.1, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 2))
 
-#Density of distribution for condition
-a <- DimPlot(object = sobj, reduction = 'umap', split.by = "group_id", group.by = "group_id")  + NoLegend() + NoAxes() + facet_wrap(~group_id)
-a2 <- a + stat_density_2d(a$data, mapping = aes(x = a$data[,"UMAP_1"], y = a$data[,"UMAP_2"]), color = "black") 
-a2
-
 #Add clonotype data
-
 #Load data
 contig_dir <- paste0(getwd(), "/../data_VDJ/")
 files <- as.vector(list.files(contig_dir, pattern = "*.csv"))

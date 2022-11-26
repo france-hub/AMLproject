@@ -1,5 +1,5 @@
 #This script does the following:
-#1) Pick the resolution for the clustering
+#1) Pick the resolution for clustering
 #2) Using scGate (https://github.com/carmonalab/scGate) creates a gating model to subset the different cell subsets
 # This can be done also in Seurat but I prefer scGate because you can also exclude negative margers to make the model 
 #more precise and subset the object on the output 
