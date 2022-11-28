@@ -1,15 +1,17 @@
-#This script is on preprocessing of scRNAseq data. Later on I'll use Seurat to analyze my data. Here though I use singlecellexperiment because
-#it allows me to use the doubletfinder package (https://github.com/chris-mcginnis-ucsf/DoubletFinder). There is now an interface of the same package
-#that works with Seurat, but when I did this I do not think was available. 
-# In summary the script does the followings:
-#1) rename the genes
-#2) Add metadata
-#3) Remove undetected genes
-#3) Infer and remove doublets
-#4) Calculate QC metrics with diagnostic plots
-#5) Remove outliers
+###This script includes 3 parts:
 
-#Nice guide: https://bioconductor.org/books/release/OSCA/
+##A) Preprocessing
+#1) Load in CellRanger output
+#2) rename rowData, colData and barcodes
+#3) define dimnames(sce)
+#4) Add metadata
+#5) Remove undetected genes
+#6) Infer and remove doublets
+#7) Calculate QC metrics with diagnostic plots
+#8) Remove outliers
+
+##B) Integration/batch correction and clonotype data addition
+##C) Subsets gating
 
 rm(list = ls())
 
@@ -28,34 +30,36 @@ library(Matrix)
 #Set working directory where the script is located
 setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
 
-#Load raw counts for all the experiments (each dir contains the files barcodes.tsv, features.tsv, matrix.mtx for each patient)
+###########################
+#A) Preprocessing
+##########################
+
+
+#1) Load in CellRanger output
 dirs <- list.dirs("data_scRNAseq", recursive = FALSE, full.names = TRUE)
 names(dirs) <- basename(dirs)
 sce <- read10xCounts(dirs)
+dim(sce) #check sce dimension
 
-#Check sce dimension
-dim(sce)
-
-#rename row/colData colnames & SCE dimnames the genes will be in the format ensembl.symbol
-#this will allow to keep as rows the info of ENSEMBLs and SYMBOLs
+#2) rename rowData, colData and barcodes
 rowData(sce) <- rowData(sce)[,1:2]
 names(rowData(sce)) <- c("ENSEMBL", "SYMBOL")
 names(colData(sce)) <- c("sample_id", "barcode")
 sce$sample_id <- factor(basename(sce$sample_id))
+
+#3) define dimnames(sce)
 dimnames(sce) <- list(
   with(rowData(sce), SYMBOL), 
-  with(colData(sce), paste(sample_id, barcode, sep = "_")))
+  with(colData(sce), paste(sample_id, barcode, sep = "_"))) #merge sample_ids with barcodes
 
-#load metadata and add to sce object
+#4) Add metadata
 md <- file.path("../md_dir", "metadata.xlsx")
 md <- read_excel(md)
 m <- match(sce$sample_id, md$sample_id)
 sce$group_id <- md$group_id[m]
 sce$timepoint <- md$timepoint[m]
 sce$RespTmp <- md$RespTmp[m]
-sce$ELN <- md$ELN[m]
 sce$batch <- md$Batch[m]
-colData(sce)
 
 # remove undetected genes
 sce <- sce[rowSums(counts(sce) > 0) > 0, ]
