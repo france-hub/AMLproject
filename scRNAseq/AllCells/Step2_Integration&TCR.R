@@ -28,9 +28,6 @@ sobj <- CreateSeuratObject(
 cells_by_batch <- split(colnames(sce), sce$batch)
 so.list <- lapply(cells_by_batch, function(i) subset(sobj, cells = i))
 
-CD8.comp <- NormalizeData(CD8, normalization.method = "RC", scale.factor = 10000)
-colnames(CD8.comp@assays$RNA@data)
-
 # normalize, find variable genes, and scale
 so.list <- lapply(so.list, NormalizeData, verbose = FALSE)
 so.list <- lapply(so.list, FindVariableFeatures, nfeatures = 2e3, 
