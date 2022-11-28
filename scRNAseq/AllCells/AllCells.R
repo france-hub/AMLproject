@@ -21,7 +21,7 @@
 ##C) Subclustering
 #1) Pick the resolution for clustering
 #2) Visualize not-annotated clusters' distribution onto 2D UMAP
-#3) Using scGate (https://github.com/carmonalab/scGate) plot the subsets of interest
+#3) Using scGate (https://github.com/carmonalab/scGate) to plot the subsets of interest
 #4) Label the clusters according to scGate results
 #5) Use gating models to subset and save into single rds objects
 #6) Use cluster annotation to subset CD4 cells (identified by scGate). This because CD4 gene is not very well detected in scRNA-seq hence the gating model 
@@ -257,7 +257,7 @@ noAnn <- DimPlot_scCustom(sobj, colors_use = pal_ident, label.size = 6) + theme_
 noAnn
 dev.off()
 
-#3) Using scGate (https://github.com/carmonalab/scGate) plot the subsets of interest
+#3) Using scGate (https://github.com/carmonalab/scGate) to plot the subsets of interest
 #CD3
 CD3 <- gating_model(name = "CD3", signature = c("CD3D", "CD3G"))
 CD3 <- scGate(sobj, model = CD3)
