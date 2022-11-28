@@ -171,7 +171,7 @@ sobj <- CreateSeuratObject(
   meta.data = data.frame(colData(sce)),
   project = "AML")
 
-#2) Split by batch them normalize, find the most variable features and scale
+#2) Split by batch then normalize, find the most variable features and scale
 cells_by_batch <- split(colnames(sce), sce$batch) #split by batch
 so.list <- lapply(cells_by_batch, function(i) subset(sobj, cells = i))
 so.list <- lapply(so.list, NormalizeData, verbose = FALSE)
@@ -240,9 +240,9 @@ ggplot(x, aes(x=Var1, y=Freq, fill = Var2)) +
   scale_fill_manual(values = colorblind_vector(5), na.value="grey") +
   theme_classic()
 
-###############################################################
-##C) Integration/batch correction and clonotype data addition
-###############################################################
+###################
+##C) Subclustering
+###################
 
 #1) Pick the resolution for clustering
 sobj <- SetIdent(sobj, value = "integrated_snn_res.0.8")
