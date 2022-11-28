@@ -420,6 +420,6 @@ GDsub <- GD
 GDsub <- subset(GDsub, subset = `is.pure.level1` == "Pure")
 saveRDS(GDsub, file = "GDsub.rds")
 
-#Use cluster annotation to subset CD4 cells (identified by scGate)
+#6) Use cluster annotation to subset CD4 cells (identified by scGate)
 CD4sub <- subset(sobj, clusters == "CD4+ T cells")
 saveRDS(CD4sub, file = "CD4sub.rds")
