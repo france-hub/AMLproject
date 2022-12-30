@@ -1,4 +1,28 @@
-##STEP4: CD8
+##CD8 This script can be organized into n parts
+
+##A)Subclustering and use of custom and published markers along with bulk-RNA seq results and DGE to annotate clusters
+#1) Subclustering as suggested here https://github.com/satijalab/Seurat/issues/2087 by timoast
+#2) Use of custom single markers and visualize as DotPlot and FeaturePlot
+#3) Use published signatures and signature of senescence obtained by bulk-seq and plot as feature and violin plots
+#4) Correlation plot of dysfunction vs senescence signature
+#5) DGE (top10 markers)
+#5) Gene coexpression matrix and find genes with correlation > q99
+#6) Annotate clusters
+
+##B) Analyze annotated subsets
+#1) Plot and look at clusters proportions and densities across samples, between conditions (group_id)
+#2) DA analysis using permutation test, speckle (Anova) and CNA
+#3) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
+
+##C) Subclustering
+#1) Pick the resolution for clustering
+#2) Visualize not-annotated clusters' distribution onto 2D UMAP
+#3) Using scGate (https://github.com/carmonalab/scGate) to plot the subsets of interest
+#4) Label the clusters according to scGate results
+#5) Use gating models to subset and save into single rds objects
+#6) Use cluster annotation to subset CD4 cells (identified by scGate). This because CD4 gene is not very well detected in scRNA-seq hence the gating model 
+#can be not enough senesitive to "gate" on CD4 (this was discussed a little bit here: https://github.com/carmonalab/scGate/issues/15)
+
 rm(list = ls())
 
 library(Seurat)
@@ -37,50 +61,54 @@ library(glue)
 library(ggnetwork)
 library(ggforce)
 library(speckle)
-library(SCpubr)
 library(scry)
-library(compassR)
 library(tidyverse)
+library(AUCell)
+library(RcisTarget)
+library(zoo)
+library(mixtools)
+library(rbokeh)
+library(DT)
+library(NMF)
+library(R2HTML)
+library(Rtsne)
+library(doMC)
+library(doRNG)
+library(SCENIC)
+library(arrow)
 
 setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
 CD8 <-readRDS("CD8sub_test.rds")
 
-#Subclustering the integrated assay as suggested here https://github.com/satijalab/CD8/issues/2087 by timoast
-# Identify the 2000 most variable genes in the RNA assay 
-DefaultAssay(CD8) <- "RNA"
+#######################################################################################################################
+#A) Subclustering and use of custom and published markers along with bulk-RNA seq results and DGE to annotate clusters
+#######################################################################################################################
 
+#1) Subclustering as suggested here https://github.com/satijalab/Seurat/issues/2087 by timoast
+DefaultAssay(CD8) <- "RNA"
 CD8 <- FindVariableFeatures(CD8, selection.method = "vst", 
                             nfeatures = 2000, 
                             verbose = FALSE)
-
 # Scale the counts in the integrated assay
 DefaultAssay(CD8) <- "integrated"
 CD8 <- ScaleData(CD8)
-
 # Run PCA and UMAP
 CD8 <- RunPCA(CD8)
 CD8 <- RunUMAP(CD8, dims = 1:30, verbose = FALSE)
-
-# Look at the batches
-DimPlot(CD8, reduction = "pca", group.by = "batch")
-DimPlot(CD8, reduction = "umap", group.by = "batch")
-
 # Plot the elbow plot
 ElbowPlot(object = CD8, ndims = 30)
-
 # Determine the K-nearest neighbor graph
-CD8 <- FindNeighbors(object = CD8, dims = 1:20)
 
+CD8 <- FindNeighbors(object = CD8, dims = 1:20)
 # Determine the clusters for various resolutions                                
 CD8 <- FindClusters(object = CD8, resolution = c(0.4, 0.6, 0.7, 0.8, 0.9, 1.0,1.2))
-
 # set cluster IDs to resolution 0.4 clustering
 CD8 <- SetIdent(CD8, value = "integrated_snn_res.0.4")
+#Plot UMAP
 DimPlot(CD8, label = T)
 DefaultAssay(CD8) <- "RNA" #Put "RNA" as default assay
 DimPlot(CD8, split.by = "group_id")
-
-#Visualize the new subcluster
+#Visualize the new subcluster and define custom palette
 pal_ident <- DiscretePalette_scCustomize(num_colors = 40, palette = "ditto_seq")
 p.cd8 <- DimPlot_scCustom(CD8, label = TRUE, colors_use = pal_ident, pt.size = 0.00001, label.size = 6) + 
   theme_void() +
@@ -90,6 +118,8 @@ tiff("../plots_CD8/cd8clus.tiff", width = 5*200, height = 5*200, res = 300, poin
 p.cd8
 dev.off()
 
+#2) Use of custom single markers and visualize as DotPlot and FeaturePlot
+
 #DotPlot
 features <- c("CCR7", "TCF7", "LEF1", "SELL", "IL7R", "SLAMF6", 
               "CXCR3", "GZMK", "CCL3", "CCL4", "CCL5", "XCL1", 
@@ -97,15 +127,38 @@ features <- c("CCR7", "TCF7", "LEF1", "SELL", "IL7R", "SLAMF6",
               "NR4A2", "ENTPD1", "ITGAE", "NKG7", "CX3CR1", "GNLY",
               "PRF1", "GZMB", "ZEB2", "CD226", "ZNF683",
               "TRAV1-2", "SLC4A10")   
-
+#Define blue-white-red palette to be used consistently for plotting expression values
 pal_exp <- colorRampPalette(c("blue", "white", "red"))(256)
-
 tiff("../plots_CD8/cd8dot.tiff", width = 5*500, height = 5*250, res = 300, pointsize = 5)     
 DotPlot_scCustom(CD8, features, colors_use = pal_exp, x_lab_rotate = TRUE) + 
   theme(axis.text.x = element_text(size = 8))
 dev.off()
+?FeaturePlot
+#FeaturePlot
+p.CD8 <- FeaturePlot(CD8, features = "CD8A", pt.size = 0.00001, order = T) +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), breaks=c(0.3, 3.9), label = c("Min", "Max"))
 
-#Scores
+#get legend to be used later on (same scale palette)
+#get the legend from plot with same scale palette
+legend <- get_legend(
+  p.CD8 + theme(legend.box.margin = margin(0, 0, 0, 12), legend.position = "bottom",
+                  legend.justification = "center") 
+)
+
+p <-FeaturePlot(CD8, features = c("TCF7", "IL7R", "GZMK", "CD69", "PDCD1", "GZMB", "PRF1", "GNLY"), combine=F, pt.size=0.00001, order=T) 
+
+for(i in 1:length(p)) {
+  p[[i]] <- p[[i]] + NoAxes()+theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) +
+    scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position = "none")
+}
+
+tiff("../plots_CD8/p.markers.umap.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
+p.markers <- cowplot::plot_grid(plotlist = p, nrow =2)
+p.mar_leg <- plot_grid(p.markers, legend, ncol = 1, rel_heights = c(1, .1))
+p.mar_leg
+dev.off()
+
+#3) Use published signatures and signature of senescence obtained by bulk-seq and plot as feature and violin plots
 #signatures
 sig <- readxl::read_xlsx("../signatures/sig.xlsx", sheet = 1)
 sig_naive <- list(sig$`Naive (from Szabo et al. 2019)`[!is.na(sig$`Naive (from Szabo et al. 2019)`)])
@@ -114,13 +167,6 @@ p.naive <- FeaturePlot(CD8, "sig_naive1", pt.size = 0.00001, order = T,  min.cut
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), breaks=c(0.03, 0.18), label = c("Min", "Max")) +   
   ggtitle("Naive (from Szabo et al. 2019)") + theme(plot.title = element_text(size = 15, face = "bold"))
 p.naive
-
-#get legend to be used later on (same scale palette)
-#get the legend from plot with same scale palette
-legend <- get_legend(
-  p.naive + theme(legend.box.margin = margin(0, 0, 0, 12), legend.position = "bottom",
-                legend.justification = "center") 
-)
 
 sig_stem <- list(sig$`Stemness (from Pace et al. 2018)`[!is.na(sig$`Stemness (from Pace et al. 2018)`)])
 CD8 <- AddModuleScore(CD8, features = sig_stem, name = "sig_stem")
@@ -181,13 +227,13 @@ modify_vlnplot<- function(obj,
   return(p)
 }
 
-## extract the max value of the y axis
+# extract the max value of the y axis
 extract_max<- function(p){
   ymax<- max(ggplot_build(p)$layout$panel_scales_y[[1]]$range$range)
   return(ceiling(ymax))
 }
 
-##Function for stacked violin
+#Function for stacked violin
 StackedVlnPlot<- function(obj, features,
                           pt.size = 0, 
                           plot.margin = unit(c(-0.75, 0, -0.75, 0), "cm"),
@@ -213,6 +259,7 @@ tiff("../plots_CD8/stackvln.tiff", width = 5*180, height = 5*150, res = 300, poi
 StackedVlnPlot(obj = CD8, features = c("Senescence", "Dysfunction")) & scale_fill_manual(values = pal_ident)
 dev.off()
 
+#4) Correlation plot of dysfunction vs senescence signature
 data<- CD8@assays$integrated@scale.data 
 data<- t(data) %>% as.data.frame()
 data$Senescence <- CD8$Senescence
@@ -232,21 +279,7 @@ ggplot(data, aes(x = Senescence, y = Dysfunction, color = pc)) +
         plot.title = element_text(hjust = 0.5))
 dev.off()
 
-#Plot single markers
-p <-FeaturePlot(CD8, features = c("TCF7", "IL7R", "GZMK", "CD69", "PDCD1", "GZMB", "PRF1", "GNLY"), combine=F, pt.size=0.00001, order=T) 
-
-for(i in 1:length(p)) {
-  p[[i]] <- p[[i]] + NoAxes()+theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) +
-    scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position = "none")
-}
-
-tiff("../plots_CD8/p.markers.umap.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
-p.markers <- cowplot::plot_grid(plotlist = p, nrow =2)
-p.mar_leg <- plot_grid(p.markers, legend, ncol = 1, rel_heights = c(1, .1))
-p.mar_leg
-dev.off()
- 
-#DGE all markers (top10 markers)
+#5) DGE (top10 markers)
 mark <- FindAllMarkers(CD8)
 mark %>% dplyr::filter(!str_detect(rownames(mark), "^RP[SL]")) %>% 
   group_by(cluster) %>%
@@ -304,7 +337,7 @@ p <- draw(h.heat.NoAnnot, heatmap_legend_side = "bottom", align_heatmap_legend =
 p
 dev.off()
 
-#Coexp gene matrix
+#5) Gene coexpression matrix and find genes with correlation > q99
 mat <- cor(t(as.matrix(CD8@assays$RNA@data[VariableFeatures(CD8)[1:500],])),method = "spearman")
 mat_corr <- mat
 diag(mat_corr) <- 0 #give 0 to the diagonal
@@ -332,10 +365,10 @@ ht <- Heatmap(mat, name = "Spearman correlation",
 draw(ht, heatmap_legend_side = "bottom")
 dev.off()
 
-
 #clean workspace
 rm(list=setdiff(ls(), "CD8"))
 
+#6) Annotate clusters
 CD8 <- RenameIdents(CD8,
                     "0" = "Naive",
                     "1" = "StL",
@@ -354,6 +387,11 @@ CD8 <- RenameIdents(CD8,
 #Add clusters variable to mddata
 CD8$clusters<- CD8@active.ident
 
+################################
+##B) Analyze annotated subsets
+################################
+
+#1) Plot and look at clusters proportions and densities across samples, between conditions (group_id)
 #Cluster distribution across all samples
 tiff("../plots_CD8/barplotCD8.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
 ggplot(CD8@meta.data, aes(x=clusters, fill=sample_id)) + geom_bar(position = "fill") + theme_bw() + 
@@ -382,7 +420,7 @@ p.dens +  geom_density_2d_filled(p.dens$data, mapping = aes(x = p.dens$data[,"UM
   facet_wrap(vars(RespTmp), nrow = 1)
 dev.off()
 
-#Differential abundance testing
+#2) DA analysis using permutation test, speckle (Anova) and CNA
 #Permutation test 
 prop_test <- sc_utils(CD8)
 
@@ -419,7 +457,7 @@ p.perm3 <- permutation_plot(prop_test_HDVSNonRes, log2FD_threshold = log2(2)) +
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue"))
-
+?permutation_plot
 p.perm <- plot_grid(p.perm1, p.perm2, p.perm3, rel_widths = c(1,1,1.9), nrow = 1)
 
 tiff("../plots_CD8/sig.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
@@ -436,9 +474,9 @@ dev.off()
 
 condition <- c(rep("HD",2), rep("NonRes",2), rep("Res", 4), rep("NonRes", 2), 
                rep("Res", 2))
-pair <- rep(c(1,2,3,4,5,6), each = 2)
+pair <- c(1,2, rep(c(3,4,5,6,7), each = 2))
 batch <- c(rep(1,2), rep(2,2), rep(3,2), rep(2,2), rep(1,2), rep(2,2))
-design <- model.matrix(~0 + condition + pair + batch)
+design <- model.matrix(~0 + condition + pair  + batch)
 df.anova <- propeller.anova(prop.list=props, design=design, coef = c(1,2,3), 
                             robust=TRUE, trend=FALSE, sort=TRUE) %>% as.data.frame() 
 df.anova <- df.anova %>% set_colnames(c("HD", "NonRes", "Res", "Fstat", "p.value", "FDR"))
@@ -497,7 +535,7 @@ p.box <- ggplot(df.plot, aes(x = group_id, y = frequency, fill = group_id)) +
 p.box + geom_text(aes(x=1.9,y=0.45,label=positions), size = 1.6)
 dev.off()
 
-#CNA
+#CNA (Res vs NonRes)
 CD8.cna <- subset(CD8, group_id %in% c("Res", "NonRes"))
 CD8.cna <- FindVariableFeatures(CD8.cna,selection.method = "vst", nfeatures = 2000) 
 DefaultAssay(CD8.cna) <- "integrated"
@@ -548,19 +586,9 @@ tiff("../plots_CD8/stem_cna.tiff", width = 5*300, height = 5*200, res = 300, poi
 p.stem.cna + theme_void(base_size = 18) + theme(legend.position = "none")
 dev.off()
 
-#Look at local densities
-use_condaenv("~/miniconda3/")
-# make sure reticulate package can find correct version of "umap" model of python
-umap_import <- reticulate::import(module = "umap", delay_load = TRUE)
-umap_import$pkg_resources$get_distribution("umap-learn")$version # here should print 0.5.2 in your case
-CD8 <- RunUMAP(CD8, dims = 1:30, umap.method = "umap-learn", densmap=TRUE)
-tiff("../plots/densMAP.tiff", width = 5*300, height = 5*150, res = 150, pointsize = 5)     
-DimPlot(CD8, split.by = "group_id")
-dev.off()
-
+#3) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
 #Custom Markers Heatmap
 DefaultAssay(CD8) <- "RNA"
-
 cust_mark <- list(
   Naive = c("CCR7", "MAL", "LEF1", "SELL", "TCF7"),
   StL = c("BCL2", "BACH2", "CD27","IL7R", "SLAMF6", "CXCR3", "GZMK"),
@@ -569,6 +597,7 @@ cust_mark <- list(
          "GNLY", "ZEB2", "CX3CR1", "FGFBP2", "KLRD1", "GZMB","ZNF683", "CD226")
 )
 
+#Plot custom markers as scores
 sig_naive <- list(cust_mark$Naive)
 CD8 <- AddModuleScore(CD8, features = sig_naive, name = "sig_naive")
 p.naive <- FeaturePlot(CD8, "sig_naive1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
@@ -797,35 +826,6 @@ tiff("../plots/p.dot_cond.tiff", width = 5*280, height = 5*300, res = 300, point
 Clustered_DotPlot(CD8, all_markers, colors_use_exp = pal_exp, group.by = "group_id",
                   exp_color_min = -1, exp_color_max = 1, colors_use_idents = pal_ident,
                   x_lab_rotate = TRUE, k =2)
-dev.off()
-
-#Identify cell cycling cells
-s.genes <- cc.genes$s.genes
-g2m.genes <- cc.genes$g2m.genes
-
-CD8cc <- CellCycleScoring(CD8, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
-
-tiff("../plots/ccUMAP.tiff", width = 5*200, height = 5*150, res = 300, pointsize = 5)     
-DimPlot(CD8cc,
-        reduction = "umap",
-        group.by= "Phase")
-dev.off()
-
-freq_table <- CD8cc[[]]
-colnames(freq_table)
-freq_table <- freq_table[,c("group_id", "clusters", "Phase")]
-freq_table <- subset(freq_table, Phase != "Undecided") #removing undecided phases
-freq_table <- freq_table %>%
-  group_by(group_id, clusters, Phase) %>%
-  summarise(n = n())
-freq_table$Phase <- factor(freq_table$Phase, levels = c("G1", "G2M", "S")) #ordering phases
-
-tiff("../plots/ccAbund.tiff", width = 5*150, height = 5*100, res = 300, pointsize = 5)     
-ggplot(freq_table, aes(x=clusters, y=n, fill=Phase)) + 
-  labs(x = NULL, y = NULL)+
-  stat_summary(geom="bar", position="fill", color="black", lwd=0.25) + 
-  theme(axis.title.x = element_blank()) + 
-  theme_classic() + coord_flip()
 dev.off()
 
 #Drivers of SL and Tex
@@ -1899,8 +1899,7 @@ row_anno <- rowAnnotation(
   col = list(cluster_id = cols, gp = gpar(col = "white")), 
   show_legend = c(FALSE, TRUE)) 
 
-idx <- which(rownames(mat) %in% c("KLRB1", "ANXA1", "ZNF683",
-                                "SPON2", "GNLY", "FGFBP2"))
+idx <- which(rownames(mat) %in% c("KLRB1", "ZNF683", "GNLY", "FGFBP2"))
 colLab <- rep("black", nrow(mat))
 colLab[idx] <- "red"
 
@@ -1919,25 +1918,6 @@ tiff("../plots_CD8/heatSL.tiff", width = 5*330, height = 5*150, res = 300, point
 p <- draw(h.heat.sl1sl2, heatmap_legend_side = "bottom", align_heatmap_legend = "heatmap_center", 
           show_annotation_legend = FALSE)
 p
-dev.off()
-
-p <-FeaturePlot(CD8, features = c("ITGB1", "ZNF683"), combine=F, pt.size=0.00001, order=T) 
-
-for(i in 1:length(p)) {
-  p[[i]] <- p[[i]] + NoAxes()+theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) +
-    scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position = "none")
-}
-
-#get the legend from plot with same scale palette
-legend <- get_legend(
-  p.cd8 + theme(legend.box.margin = margin(0, 0, 0, 12), legend.position = "bottom",
-                legend.justification = "center") 
-)
-
-tiff("../plots_CD8/p.sl.umap.tiff", width = 5*200, height = 5*150, res = 300, pointsize = 5)     
-p.sl <- cowplot::plot_grid(plotlist = p, nrow =1)
-p.sl_leg <- plot_grid(p.sl, legend, ncol = 1, rel_heights = c(0.8, .1))
-p.sl_leg + plot_layout(heights = c(12.5,1.5))
 dev.off()
 
 #Velocity
@@ -1997,3 +1977,147 @@ ggplot(df,
   xlab("Latent Time") +
   ylab("") + labs(col = "") +theme(legend.text=element_text(size=10))
 dev.off()
+
+#Scenic
+#1st Download the required databases:
+#I used the command-line interface downloaded (wget) the files in a folder called cisTarget_databases
+# The files are:
+#a)https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg38/refseq_r80/mc9nr/gene_based/hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.genes_vs_motifs.rankings.feather;
+#b) https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg38/refseq_r80/mc9nr/gene_based/hg38__refseq-r80__500bp_up_and_100bp_down_tss.mc9nr.genes_vs_motifs.rankings.feather
+# I also renamed the files as hg38__refseq-r80__500bp_up_and_100bp_down_tss.mc9nr.feather and hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.feather
+
+#Proceed as here: http://htmlpreview.github.io/?https://github.com/aertslab/SCENIC/blob/master/inst/doc/SCENIC_Running.html
+exprMat <- CD8@assays$RNA@data #expresion matrix
+cellInfo <- CD8@meta.data #metadata
+
+levels(cellInfo$clusters2)
+
+colVars <- list(CellType=c("Naive"="#F0E442",
+                           "StL"="#E69F00",
+                           "SL1"="#0072B2",
+                           "SL2"='#56B4E9',
+                           "ActEx"="#009E73"))
+colVars$CellType <- colVars$CellType[intersect(names(colVars$CellType), cellInfo$clusters2)]
+myDatasetTitle <- "SCENIC AML" 
+dbVersion <- 'v9'
+dbDir <- 'cisTarget_databases'
+
+#Scenic expects names(db@rankings)[1] to be "features" instead of motifs. To avoid errors and use hg38 instead of hg19 we need to add some more steps to SCENIC tutorial 
+#After having modified the files we can write them and then read again in inizializeScenic
+db <- importRankings("cisTarget_databases/hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.feather",  indexCol = "motifs")
+names(db@rankings)[1] <- "features" 
+db@org <- "hgnc"
+db@genome <- "hg38"
+arrow::write_feather(db@rankings, "cisTarget_databases/hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.feather")
+
+db <- importRankings("cisTarget_databases/hg38__refseq-r80__500bp_up_and_100bp_down_tss.mc9nr.feather")
+names(db@rankings)[1] <- "features"
+db@org <- "hgnc"
+db@genome <- "hg38"
+arrow::write_feather(db@rankings,"cisTarget_databases/hg38__refseq-r80__500bp_up_and_100bp_down_tss.mc9nr.feather")
+
+#assign the two files we are going to read to hg38Dbs
+hg38Dbs <- c('500bp'= 'hg38__refseq-r80__500bp_up_and_100bp_down_tss.mc9nr.feather', 
+             '10kb' = 'hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.feather')
+
+#Proceed as in the tutorial
+scenicOptions <- initializeScenic(org=org, dbs = hg38Dbs, dbDir = dbDir,
+                                   datasetTitle=myDatasetTitle, nCores=10)
+
+scenicOptions@inputDatasetInfo$colVars <- colVars
+scenicOptions@inputDatasetInfo$colVars <- cellInfo
+
+
+scenicOptions@settings$dbs <- hg38Dbs
+scenicOptions@settings$dbDir <- dbDir
+scenicOptions@settings$db_mcVersion <- dbVersion
+
+exprMat <- as.matrix(exprMat)
+genesKept <- geneFiltering(exprMat, scenicOptions=scenicOptions2,
+                           minCountsPerGene=3*.01*ncol(exprMat),
+                           minSamples=ncol(exprMat)*.01)
+
+#Check if the interesting genes in my dataset are in genesKept
+interestingGenes <- c("TCF7", "IL7R", "GZMK", "GNLY", "NR4A2", "ZNF683", "CX3CR1")
+interestingGenes[which(!interestingGenes %in% genesKept)]
+
+#Filter the matrix
+exprMat_filtered <- exprMat[genesKept, ]
+runCorrelation(exprMat_filtered, scenicOptions)
+
+#Function to export matrix and scenicOptions and analyze in Python using GRNBoost (this will markedly reduce the time to analyze the data)
+exportsForArboreto(exprMat = exprMat_filtered, scenicOptions = scenicOptions, dir = ".")
+
+#Read in GRNBoost output from Python
+GRNBoost_output <- read.delim("./adjacencies.tsv", header=FALSE)
+colnames(GRNBoost_output) <- c("TF","Target","weight") #rename colnames to follow SCENIC R tutorial
+
+saveRDS(GRNBoost_output, file="int/1.4_GENIE3_linkList.Rds") #save
+
+exprMat_log <- log2(exprMat_filtered+1)
+scenicOptions@settings$verbose <- TRUE
+scenicOptions@settings$nCores <- 10
+scenicOptions@settings$seed <- 123
+
+scenicOptions <- runSCENIC_1_coexNetwork2modules(scenicOptions)
+scenicOptions <- runSCENIC_2_createRegulons(scenicOptions) 
+scenicOptions@settings$nCores <- 1
+scenicOptions <- runSCENIC_3_scoreCells(scenicOptions, exprMat_log)
+saveRDS(scenicOptions, file="int/SO.Rds") # save
+
+nPcs <- c(5,15,50)
+
+# Run t-SNE with different settings:
+fileNames <- tsneAUC(scenicOptions, aucType="AUC", nPcs=nPcs, perpl=c(5,15,50), onlyHighConf=TRUE, filePrefix="int/tSNE_oHC")
+
+saveRDS(cellInfo, file="int/cellInfo.Rds")
+par(mfrow=c(length(nPcs), 3))
+fileNames <- paste0("int/",grep(".Rds", grep("tSNE_AUC", list.files("int"), value=T, perl = T), value=T))
+
+par(mfrow=c(3,3))
+fileNames <- paste0("int/",grep(".Rds", grep("tSNE_oHC_AUC", list.files("int"), value=T, perl = T), value=T))
+plotTsne_compareSettings(fileNames, scenicOptions, showLegend=FALSE, varName="clusters2", cex=.5)
+
+#Obtain matrix of regulon activity and plot as heatmap
+regulonAUC <- loadInt(scenicOptions, "aucell_regulonAUC")
+regulonAUC <- regulonAUC[onlyNonDuplicatedExtended(rownames(regulonAUC)),]
+regulonActivity_byCellType <- sapply(split(rownames(cellInfo), cellInfo$clusters2),
+                                     function(cells) rowMeans(getAUC(regulonAUC)[,cells]))
+mat <- t(scale(t(regulonActivity_byCellType), center = T, scale=T))
+rownames(mat) <- gsub("_extended", "", rownames(mat))
+mat <- mat %>% as.data.frame() %>%  select(c("Naive", "StL", "ActEx", "SL1", "SL2")) %>% as.matrix()
+cols <- pal_ident[seq_along(levels(CD8$clusters2))]
+cols <- setNames(cols, c("Naive", "StL", "SL1", "ActEx", "SL2"))
+col_anno <- HeatmapAnnotation(
+  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SL1", "SL2")),
+  col = list(cluster_id = cols, gp = gpar(col = "white"))) 
+lgd_aes <- list(direction = "vertical", legend_width = unit(2.2, "cm"),
+                title = "Regulon activity")
+h.reg <- Heatmap(mat,
+                 cluster_rows = FALSE,
+                 cluster_columns = FALSE,
+                 row_names_side = "right",
+                 bottom_annotation = col_anno,
+                 row_names_gp = grid::gpar(fontsize = 7),
+                 heatmap_legend_param = lgd_aes,
+                 column_names_gp = gpar(fontsize = 15))
+
+tiff("../heat.tiff", width = 5*300, height = 5*500, res = 300, pointsize = 5)     
+h.reg
+dev.off()
+
+#Add the info obtained with SCENIC to Seurat metadata for additional plotting options
+AUC.df <- t(AUCell::getAUC(regulonAUC)) %>% as.data.frame()
+colnames(AUC.df) <- gsub("_extended|\\s", "", colnames(AUC.df))
+md <- CD8@meta.data
+AUC.ord <- AUC.df %>% slice(match(rownames(md), rownames(AUC.df)))
+all(rownames(md) == rownames(AUC.ord))
+md <- cbind(md, AUC.ord)
+CD8@meta.data <- md
+AUCell::AUCell_plotTSNE(dr_coords, cellsAUC=selectRegulons(regulonAUC, "HIF1A"), plots = "AUC")
+
+FeaturePlot_scCustom(CD8, features = "HIF1A(50g)", colors_use =  viridis_plasma_light_high, order = TRUE, 
+                     split.by = "group_id")
+
+
+
