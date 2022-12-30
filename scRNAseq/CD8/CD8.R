@@ -13,6 +13,35 @@
 #1) Plot and look at clusters proportions and densities across samples, between conditions (group_id)
 #2) DA analysis using permutation test, speckle (Anova) and CNA
 #3) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
+#4) Plot scores obtained combining top10 and custom markers onto 2D UMAP
+#5) Compute drivers of SL and ActEx via lasso regression
+
+##C) Compute trajectories to infer CD8+ cells differentiation path
+#1) Run Slingshot and plot the two trajectories
+#2) Use tradeSeq to fit a generalized additive model (GAM) and then use patternTest to study gene expression
+
+##D) Compute gene set variation analysis and infer pathway activity
+#1) Use GSVA and limma to study gene set enrichments between couples of subsets (SLvsStL, SLvsActEx, ActExvsStL)
+#2) Use SCpubr and decoupleR for pathway activity inference
+
+##E) TCR repertoire analysis
+#1) Export for scirpy
+#2) scRepertoire analysis
+
+##F) Reclustering with increased resolution and further analyses
+#1) Reclustering and clusters frequencies across conditions
+#2) STARTRAC method
+#3) DGE including clusters SL1 and SL2
+
+##G) Velocity inference
+#1) Load in loom files and prepare to analyze in Python via scVelo
+#2) import from python the csv with the info on latent time and different subsets and plot
+
+##H) SCENIC
+#1) Download the required databases
+#2) Run SCENIC workflow
+#3) Use exportsForArboreto to export matrix and scenicOptions and analyze in Python using GRNBoost 
+#4) Read in GRNBoost output from Python and proceed with the workflow
 
 rm(list = ls())
 
@@ -42,7 +71,9 @@ library(scCustomize)
 library(vip)
 library(tidymodels)
 library(scProportionTest)
-library(fgsea)
+library(decoupleR)
+library(OmnipathR)
+library(ggdist)
 library(dplyr)
 library(limma)
 library(ggplotify)
@@ -819,7 +850,7 @@ Clustered_DotPlot(CD8, all_markers, colors_use_exp = pal_exp, group.by = "group_
                   x_lab_rotate = TRUE, k =2)
 dev.off()
 
-#Drivers of SL and Tex
+#Drivers of SL and ActEx
 CD8.new <- CD8
 SL<- subset(CD8.new, clusters %in% c("SL", "ActEx"))
 Idents(SL)<- SL$clusters
@@ -845,8 +876,6 @@ data$cell_barcode<- rownames(data)
 data$cell_type<- factor(data$cell_type)
 View(data)
 set.seed(123)
-View(data)
-View(data)
 data_split <- initial_split(data, strata = "cell_type")
 data_train <- training(data_split)
 data_test <- testing(data_split)
@@ -901,7 +930,11 @@ scCustomize::Stacked_VlnPlot(SL, features = lasso_features %>% pull(term) %>% he
                              colors_use = c("blue", "red")) 
 dev.off()
 
-#TRAJECTORY INFERENCE using Slingshot
+##################################################################
+##C) Compute trajectories to infer CD8+ cells differentiation path
+##################################################################
+
+#1) Run Slingshot and plot the two trajectories
 clusterLabels <- CD8$clusters
 sceCD8 <- as.SingleCellExperiment(CD8, assay = "RNA")
 sds <- slingshot(sceCD8, clusterLabels = clusterLabels, 
@@ -952,8 +985,7 @@ tiff("../plots_CD8/umap_traj.tiff", width = 5*350, height = 5*250, res = 300, po
 p.traj +theme_void()
 dev.off()
 
-## Identifying differentially expressed genes along a trajectory
-#Fit negative binomial model
+#2) Use tradeSeq to fit a generalized additive model (GAM) and then use patternTest to study gene expression
 set.seed(5)
 par(mar=c(1,1,1,1))
 icMat <- evaluateK(counts = counts(sceCD8), sds = sds, k = 3:7, 
@@ -1137,32 +1169,11 @@ tiff("../plots_CD8/heatTraj.tiff", width = 5*350, height = 5*400, res = 300, poi
 heat.sl + heat.ae 
 dev.off()
 
-#Monocle
-library(monocle3)
-cds <- as.cell_data_set(CD8)
-cds <- cluster_cells(cds, resolution=1e-3)
+###################################################################
+##D) Compute gene set variation analysis and infer pathway activity
+###################################################################
 
-p1 <- plot_cells(cds, color_cells_by = "clusters", show_trajectory_graph = FALSE)
-p2 <- plot_cells(cds, color_cells_by = "partition", show_trajectory_graph = FALSE)
-wrap_plots(p1, p2)
-integrated.sub <- subset(as.Seurat(cds, assay = NULL), monocle3_partitions == 1)
-cds <- as.cell_data_set(integrated.sub)
-
-cds <- learn_graph(cds, verbose = FALSE)
-
-plot_cells(cds,
-           color_cells_by = "clusters",
-           label_groups_by_cluster=FALSE,
-           label_leaves=FALSE,
-           label_branch_points=FALSE)
-
-min.clus <- which.min(unlist(FetchData(CD8, "clusters")))
-min.clus <- colnames(integrated.sub)[min.clus]
-cds <- order_cells(cds, root_cells = min.clus)
-plot_cells(cds, color_cells_by = "pseudotime", label_cell_groups = FALSE, label_leaves = FALSE, 
-           label_branch_points = FALSE)
-
-#GSVA
+#1) Use GSVA and limma to study gene set enrichments between couples of subsets (SLvsStL, SLvsActEx, ActExvsStL)
 # function to read GMT file
 read_GMT_file <- function(file) {
   gmt <- readr::read_delim(
@@ -1419,220 +1430,7 @@ tiff("../plots_CD8/GSVA_plots2.tiff", width = 5*415, height = 5*300, res = 300, 
 ActExvStL
 dev.off()
 
-CD8@active.ident <- CD8$clusters
-tiff("../plots_CD8/DP_LDHA.tiff", width = 5*200, height = 5*180, res = 300, pointsize = 5)     
-DotPlot_scCustom(CD8, features = "LDHA",colors_use = pal_exp, x_lab_rotate = TRUE) + 
-  theme(axis.text.x = element_text(size = 8))
-dev.off()
-
-#GSEA
-##SLvsStL
-SLvStL_ranked <- FindMarkers(CD8, ident.1 = "SL", ident.2 = "StL", min.pct = 0.1, logfc.threshold = 0)
-
-# order list, pull out gene name and log2fc, and convert genes to uppercase
-SLvStL_ranked <- SLvStL_ranked[order(SLvStL_ranked$avg_log2FC, decreasing = T),]
-SLvStL_ranked$Gene.name <- str_to_upper(rownames(SLvStL_ranked))
-SLvStL_ranked <- SLvStL_ranked[,c("Gene.name", "avg_log2FC")]
-rownames(SLvStL_ranked) <- NULL
-
-# read in file containing lists of genes for each pathway
-getwd()
-hallmark_pathway <- gmtPathways("h.all.v7.0.symbols.gmt.txt")
-head(names(hallmark_pathway))
-
-# formats the ranked list for the fgsea() function
-prepare_ranked_list <- function(ranked_list) { 
-  # if duplicate gene names present, average the values
-  if( sum(duplicated(ranked_list$Gene.name)) > 0) {
-    ranked_list <- aggregate(.~Gene.name, FUN = mean, data = ranked_list)
-    ranked_list <- ranked_list[order(ranked_list$avg_logFC, decreasing = T),]
-  }
-  # omit rows with NA values
-  ranked_list <- na.omit(ranked_list)
-  # turn the dataframe into a named vector
-  ranked_list <- tibble::deframe(ranked_list)
-  ranked_list
-}
-
-SLvStL_ranked <- prepare_ranked_list(SLvStL_ranked)
-head(SLvStL_ranked)
-
-# generate GSEA result table using fgsea() by inputting the pathway list and ranked list
-fgsea_results <- fgsea(pathways = hallmark_pathway,
-                       stats = SLvStL_ranked,
-                       minSize = 15,
-                       maxSize = 500)
-
-fgsea_results %>% arrange (desc(NES)) %>% select (pathway, padj, NES) %>% head()
-
-waterfall_plot <- function (fsgea_results, graph_title) {
-  fgsea_results %>% 
-    mutate(short_name = str_split_fixed(pathway, "_",2)[,2])%>%
-    ggplot( aes(reorder(short_name,NES), NES)) +
-    geom_bar(stat= "identity", aes(fill = padj<0.05))+
-    coord_flip()+
-    labs(x = "Hallmark Pathway", y = "Normalized Enrichment Score", title = graph_title)+
-    theme(axis.text.y = element_text(size = 7), 
-          plot.title = element_text(hjust = 1))
-}
-
-wf_SLvStL <- waterfall_plot(fgsea_results, "Pathways enriched in SL vs StL")
-
-ActExvStL_ranked <- FindMarkers(CD8, ident.1 = "ActEx", ident.2 = "StL", min.pct = 0.1, logfc.threshold = 0)
-
-# order list, pull out gene name and log2fc, and convert genes to uppercase
-ActExvStL_ranked <- ActExvStL_ranked[order(ActExvStL_ranked$avg_log2FC, decreasing = T),]
-ActExvStL_ranked$Gene.name <- str_to_upper(rownames(ActExvStL_ranked))
-ActExvStL_ranked <- ActExvStL_ranked[,c("Gene.name", "avg_log2FC")]
-rownames(ActExvStL_ranked) <- NULL
-
-# read in file containing lists of genes for each pathway
-hallmark_pathway <- gmtPathways("h.all.v7.0.symbols.gmt.txt")
-head(names(hallmark_pathway))
-
-# formats the ranked list for the fgsea() function
-prepare_ranked_list <- function(ranked_list) { 
-  # if duplicate gene names present, average the values
-  if( sum(duplicated(ranked_list$Gene.name)) > 0) {
-    ranked_list <- aggregate(.~Gene.name, FUN = mean, data = ranked_list)
-    ranked_list <- ranked_list[order(ranked_list$avg_logFC, decreasing = T),]
-  }
-  # omit rows with NA values
-  ranked_list <- na.omit(ranked_list)
-  # turn the dataframe into a named vector
-  ranked_list <- tibble::deframe(ranked_list)
-  ranked_list
-}
-
-ActExvStL_ranked <- prepare_ranked_list(ActExvStL_ranked)
-head(ActExvStL_ranked)
-
-# generate GSEA result table using fgsea() by inputting the pathway list and ranked list
-fgsea_results <- fgsea(pathways = hallmark_pathway,
-                       stats = ActExvStL_ranked,
-                       minSize = 15,
-                       maxSize = 500)
-
-fgsea_results %>% arrange (desc(NES)) %>% select (pathway, padj, NES) %>% head()
-
-waterfall_plot <- function (fsgea_results, graph_title) {
-  fgsea_results %>% 
-    mutate(short_name = str_split_fixed(pathway, "_",2)[,2])%>%
-    ggplot( aes(reorder(short_name,NES), NES)) +
-    geom_bar(stat= "identity", aes(fill = padj<0.05))+
-    coord_flip()+
-    labs(x = "Hallmark Pathway", y = "Normalized Enrichment Score", title = graph_title)+
-    theme(axis.text.y = element_text(size = 7), 
-          plot.title = element_text(hjust = 1))
-}
-
-wf_ActExvStL <- waterfall_plot(fgsea_results, "Pathways enriched in SL vs StL")
-
-#SLvActEx
-SLvActEx_ranked <- FindMarkers(CD8, ident.1 = "SL", ident.2 = "ActEx", min.pct = 0.1, logfc.threshold = 0)
-
-# order list, pull out gene name and log2fc, and convert genes to uppercase
-SLvActEx_ranked <- SLvActEx_ranked[order(SLvActEx_ranked$avg_log2FC, decreasing = T),]
-SLvActEx_ranked$Gene.name <- str_to_upper(rownames(SLvActEx_ranked))
-SLvActEx_ranked <- SLvActEx_ranked[,c("Gene.name", "avg_log2FC")]
-rownames(SLvActEx_ranked) <- NULL
-
-# read in file containing lists of genes for each pathway
-hallmark_pathway <- gmtPathways("h.all.v7.0.symbols.gmt.txt")
-head(names(hallmark_pathway))
-
-# formats the ranked list for the fgsea() function
-prepare_ranked_list <- function(ranked_list) { 
-  # if duplicate gene names present, average the values
-  if( sum(duplicated(ranked_list$Gene.name)) > 0) {
-    ranked_list <- aggregate(.~Gene.name, FUN = mean, data = ranked_list)
-    ranked_list <- ranked_list[order(ranked_list$avg_logFC, decreasing = T),]
-  }
-  # omit rows with NA values
-  ranked_list <- na.omit(ranked_list)
-  # turn the dataframe into a named vector
-  ranked_list <- tibble::deframe(ranked_list)
-  ranked_list
-}
-
-SLvActEx_ranked <- prepare_ranked_list(SLvActEx_ranked)
-head(SLvActEx_ranked)
-
-# generate GSEA result table using fgsea() by inputting the pathway list and ranked list
-fgsea_results <- fgsea(pathways = hallmark_pathway,
-                       stats = SLvActEx_ranked,
-                       minSize = 15,
-                       maxSize = 500)
-
-fgsea_results %>% arrange (desc(NES)) %>% select (pathway, padj, NES) %>% head()
-waterfall_plot <- function (fsgea_results, graph_title) {
-  fgsea_results %>% 
-    mutate(short_name = str_split_fixed(pathway, "_",2)[,2])%>%
-    ggplot( aes(reorder(short_name,NES), NES)) +
-    geom_bar(stat= "identity", aes(fill = padj<0.05))+
-    coord_flip()+
-    labs(x = "Hallmark Pathway", y = "Normalized Enrichment Score", title = graph_title)+
-    theme(axis.text.y = element_text(size = 7), 
-          plot.title = element_text(hjust = 1))
-}
-
-wf_SLvActEx <- waterfall_plot(fgsea_results, "Pathways enriched in SL vs ActEx")
-
-#SCPA
-library(SCPA)
-pathways <- msigdbr("Homo sapiens", "C5") %>%
-  format_pathways()
-
-
-# The populations here just need to be your normalized expression matrices
-scpa_out1 <- compare_seurat(CD8,
-                           group1 = "clusters", 
-                           group1_population = c("SL", "StL"),
-                           pathways = pathways)
-head(scpa_out,10)
-
-p1 <- plot_rank(scpa_out1, "lact", 
-                highlight_point_size = 3.5, highlight_point_color = "#60c5f7") + ggtitle("SL vs StL")
-
-p2 <- plot_rank(scpa_out, "TNF",
-                highlight_point_size = 3.5, highlight_point_color = "#fa815c")
-
-SLvsStL <- patchwork::wrap_plots(p1, p2)
-
-scpa_out2 <- compare_seurat(CD8,
-                           group1 = "clusters", 
-                           group1_population = c("SL", "ActEx"),
-                           pathways = pathways)
-
-p1 <- plot_rank(scpa_out2, "hypoxia", 
-                highlight_point_size = 3.5, highlight_point_color = "#60c5f7") + ggtitle("SL vs ActEx")
-
-p2 <- plot_rank(scpa_out2, "TNF",
-                highlight_point_size = 3.5, highlight_point_color = "#fa815c")
-
-SLvsActEx <-patchwork::wrap_plots(p1, p2)
-
-scpa_out3 <- compare_seurat(CD8,
-                            group1 = "clusters", 
-                            group1_population = c("ActEx", "StL"),
-                            pathways = pathways)
-
-p1 <- plot_rank(scpa_out3, "hypoxia", 
-                highlight_point_size = 3.5, highlight_point_color = "#60c5f7") + ggtitle("ActEx vs StL")
-
-p2 <- plot_rank(scpa_out3, "TNF",
-                highlight_point_size = 3.5, highlight_point_color = "#fa815c")
-
-ActExvsStL <-patchwork::wrap_plots(p1, p2)
-
-
-tiff("../plots/rank_plots.tiff", width = 5*400, height = 5*500, res = 300, pointsize = 5)     
-plot_grid(SLvsStL, SLvsActEx, ActExvsStL, nrow = 3)
-dev.off()
-
-BiocManager::install("decoupleR")
-BiocManager::install("OmnipathR")
-install.packages("ggdist")
+#2) Use SCpubr and decoupleR for pathway activity inference
 # Retrieve prior knowledge network.
 network <- decoupleR::get_progeny(organism = "human")
 
@@ -1655,30 +1453,20 @@ tiff("../plots_CD8/heat_hyp.tiff", width = 5*400, height = 5*500, res = 300, poi
 p.patHeat
 dev.off()
 
-#TFs
-# General heatmap.
-# Retrieve prior knowledge network.
-network <- decoupleR::get_dorothea(organism = "human",
-                                   levels = c("A", "B", "C"))
-# Run weighted means algorithm.
-activities <- decoupleR::run_wmean(mat = as.matrix(CD8@assays[["RNA"]]@data),
-                                   network = network,
-                                   .source = "source",
-                                   .targe = "target",
-                                   .mor = "mor",
-                                   times = 100,
-                                   minsize = 5)
+#Since hypoxia is up in GSVA and pathway analysis LDHA might be increased in SL
+CD8@active.ident <- CD8$clusters
+tiff("../plots_CD8/DP_LDHA.tiff", width = 5*200, height = 5*180, res = 300, pointsize = 5)     
+DotPlot_scCustom(CD8, features = "LDHA",colors_use = pal_exp, x_lab_rotate = TRUE) + 
+  theme(axis.text.x = element_text(size = 8))
+dev.off()
 
-# Increase number of TFs included in the analysis.
-out <- SCpubr::do_TFActivityPlot(sample = CD8,
-                                 activities = activities,
-                                 n_tfs = 40)
-p <- out$heatmaps$average_scores
-p
+############################
+##E) TCR repertoire analysis
+############################
 
-#Clonotype for scirpy
+#1) Export for scirpy
 CD8.clono <- CD8
-CD8.clono <- subset(CD8.clono, subset = group_id == "HD", invert = TRUE)
+CD8.clono <- subset(CD8.clono, subset = group_id == "HD", invert = TRUE) #we do not have clonotype data for the HDs
 CD8.clono$batch <- NULL
 md <- CD8.clono@meta.data
 md$clusters <- as.vector(md$clusters)
@@ -1688,6 +1476,8 @@ Convert("CD8_clonoscv.h5Seurat", dest = "h5ad")
 
 SaveH5Seurat(pbmc3k.final, filename = "pbmc3k.h5Seurat")
 Convert("pbmc3k.h5Seurat", dest = "h5ad")
+
+#2) scRepertoire analysis
 
 #Clonotype analysis
 #Delete HD (we have VDJ only for responders and nonresponders)
@@ -1745,6 +1535,11 @@ tiff("../plots_CD8/occrep.tiff", width = 5*850, height = 5*400, res = 300, point
 cowplot::plot_grid(occrep_res.bas, occrep_res.post, occrep_Nres.bas, occrep_Nres.post, nrow =2) 
 dev.off()
 
+#################
+##F) Reclustering
+#################
+
+#1) Reclustering and clusters frequencies across conditions
 #Different SL like clusters
 CD8 <- SetIdent(CD8, value = "integrated_snn_res.1.2")
 p.umap2 <- DimPlot(CD8, label = T, split.by = "group_id")
@@ -1798,6 +1593,7 @@ cluster_stats %>% ggplot(aes(x=Cluster, y = freq_groupID)) +
   theme(legend.position = "none")+ colScale
 dev.off()
 
+#2) STARTRAC method 
 CD8.clono <- subset(CD8, group_id %in% c("Res", "NonRes")) #subset again to include clusters2 variable
 
 table.div <- StartracDiversity(CD8.clono, 
@@ -1839,7 +1635,7 @@ dev.off()
 
 DefaultAssay(CD8) <- "RNA"
 
-#DGE including SL1 and SL2
+#3) DGE including clusters SL1 and SL2
 mark2 <- FindAllMarkers(CD8)
 mark2 %>% dplyr::filter(!str_detect(rownames(mark2), "^RP[SL]")) %>% 
   group_by(cluster) %>%
@@ -1911,8 +1707,11 @@ p <- draw(h.heat.sl1sl2, heatmap_legend_side = "bottom", align_heatmap_legend = 
 p
 dev.off()
 
-#Velocity
-#Load in the files
+#######################
+##G) Velocity inference
+#######################
+
+#1) Load in loom files and prepare to analyze in Python via scVelo
 ld.list <- list.files("../velocity", pattern = "loom", all.files = TRUE)
 ld <- lapply(ld.list, function(x){
   ReadVelocity(paste0("../velocity/", x))
@@ -1952,9 +1751,9 @@ md$clusters2 <- as.vector(md$clusters2)
 CD8@meta.data <- md
 CD8.velo <- CD8
 SaveH5Seurat(CD8, filename = "CD8_veloscv.h5Seurat")
-Convert("CD8_veloscv.h5Seurat", dest = "h5ad") 
+Convert("CD8_veloscv.h5Seurat", dest = "h5ad") ## --> continue in python
 
-#import dataframe on latent time from scvelo and plot 
+#2) import from python the csv with the info on latent time and different subsets and plot
 df <- read.csv("l_time.csv")
 df <- df %>% arrange(factor(clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")))
 df$clusters2 <- factor(df$clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")) 
@@ -1969,14 +1768,18 @@ ggplot(df,
   ylab("") + labs(col = "") +theme(legend.text=element_text(size=10))
 dev.off()
 
-#Scenic
-#1st Download the required databases:
+#######################
+##G) Velocity inference
+#######################
+
+#1) Download the required databases:
 #I used the command-line interface downloaded (wget) the files in a folder called cisTarget_databases
 # The files are:
 #a)https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg38/refseq_r80/mc9nr/gene_based/hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.genes_vs_motifs.rankings.feather;
 #b) https://resources.aertslab.org/cistarget/databases/homo_sapiens/hg38/refseq_r80/mc9nr/gene_based/hg38__refseq-r80__500bp_up_and_100bp_down_tss.mc9nr.genes_vs_motifs.rankings.feather
 # I also renamed the files as hg38__refseq-r80__500bp_up_and_100bp_down_tss.mc9nr.feather and hg38__refseq-r80__10kb_up_and_down_tss.mc9nr.feather
 
+#2) Run SCENIC workflow
 #Proceed as here: http://htmlpreview.github.io/?https://github.com/aertslab/SCENIC/blob/master/inst/doc/SCENIC_Running.html
 exprMat <- CD8@assays$RNA@data #expresion matrix
 cellInfo <- CD8@meta.data #metadata
@@ -2036,10 +1839,11 @@ interestingGenes[which(!interestingGenes %in% genesKept)]
 exprMat_filtered <- exprMat[genesKept, ]
 runCorrelation(exprMat_filtered, scenicOptions)
 
-#Function to export matrix and scenicOptions and analyze in Python using GRNBoost (this will markedly reduce the time to analyze the data)
+#3) Use exportsForArboreto to export matrix and scenicOptions and analyze in Python using GRNBoost 
+#(this will markedly reduce the time to analyze the data)
 exportsForArboreto(exprMat = exprMat_filtered, scenicOptions = scenicOptions, dir = ".")
 
-#Read in GRNBoost output from Python
+#4) Read in GRNBoost output from Python and proceed with the workflow
 GRNBoost_output <- read.delim("./adjacencies.tsv", header=FALSE)
 colnames(GRNBoost_output) <- c("TF","Target","weight") #rename colnames to follow SCENIC R tutorial
 
