@@ -14,15 +14,6 @@
 #2) DA analysis using permutation test, speckle (Anova) and CNA
 #3) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
 
-##C) Subclustering
-#1) Pick the resolution for clustering
-#2) Visualize not-annotated clusters' distribution onto 2D UMAP
-#3) Using scGate (https://github.com/carmonalab/scGate) to plot the subsets of interest
-#4) Label the clusters according to scGate results
-#5) Use gating models to subset and save into single rds objects
-#6) Use cluster annotation to subset CD4 cells (identified by scGate). This because CD4 gene is not very well detected in scRNA-seq hence the gating model 
-#can be not enough senesitive to "gate" on CD4 (this was discussed a little bit here: https://github.com/carmonalab/scGate/issues/15)
-
 rm(list = ls())
 
 library(Seurat)
