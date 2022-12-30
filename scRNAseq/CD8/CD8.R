@@ -1768,9 +1768,9 @@ ggplot(df,
   ylab("") + labs(col = "") +theme(legend.text=element_text(size=10))
 dev.off()
 
-#######################
-##G) Velocity inference
-#######################
+############
+##H) SCENIC
+############
 
 #1) Download the required databases:
 #I used the command-line interface downloaded (wget) the files in a folder called cisTarget_databases
