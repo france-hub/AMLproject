@@ -155,7 +155,7 @@ tiff("../plots_CD8/cd8dot.tiff", width = 5*500, height = 5*250, res = 300, point
 DotPlot_scCustom(CD8, features, colors_use = pal_exp, x_lab_rotate = TRUE) + 
   theme(axis.text.x = element_text(size = 8))
 dev.off()
-?FeaturePlot
+
 #FeaturePlot
 p.CD8 <- FeaturePlot(CD8, features = "CD8A", pt.size = 0.00001, order = T) +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), breaks=c(0.3, 3.9), label = c("Min", "Max"))
@@ -306,6 +306,7 @@ mark <- FindAllMarkers(CD8)
 mark %>% dplyr::filter(!str_detect(rownames(mark), "^RP[SL]")) %>% 
   group_by(cluster) %>%
   top_n(n = 10, wt = avg_log2FC) -> top10
+
 top10 <- top10[!duplicated(top10$gene),]
 df <- data.frame(top10$cluster, top10$gene)
 df  <-  reshape(transform(df, indx = ave(as.character(top10.cluster), top10.cluster, FUN = seq)), 
@@ -369,23 +370,107 @@ mat2 <-mat_corr %>%
   mutate(Res = ifelse(rowSums(mat_corr >= q) > 0, "Yes", "No"))
 mat2 <- mat2 %>% filter(Res == "Yes")
 mat2 <- mat2 %>% filter(!str_detect(rownames(mat2), "^RP[SL]"))
-rownames(mat2)
 
-position <- which(rownames(mat) %in% rownames(mat2)[152:169])
-row_an <- rowAnnotation(Genes = anno_mark(at = which(rownames(mat) %in% rownames(mat2)[152:169]),
-                                          labels = rownames(mat)[position],
+#169 genese above the 99th percentile
+position1 <- which(rownames(mat) %in% rownames(mat2)[0:25])
+position2 <- which(rownames(mat) %in% rownames(mat2)[26:50])
+position3 <- which(rownames(mat) %in% rownames(mat2)[51:75])
+position4 <- which(rownames(mat) %in% rownames(mat2)[76:100])
+position5 <- which(rownames(mat) %in% rownames(mat2)[100:125])
+position6 <- which(rownames(mat) %in% rownames(mat2)[126:150])
+position7 <- which(rownames(mat) %in% rownames(mat2)[151:169])
+
+#0-25
+row_an1 <- rowAnnotation(Genes = anno_mark(at = position1,
+                                          labels = rownames(mat)[position1],
                                           labels_gp = gpar(fontsize = 7),
                                           link_width = unit(2.5, "mm"),
                                           padding = unit(1, "mm"),
                                           link_gp = gpar(lwd = 0.5)))
-tiff("../plots_CD8/h.coexp.tiff", width = 5*250, height = 5*200, res = 300, pointsize = 5)     
-ht <- Heatmap(mat, name = "Spearman correlation",
+
+ht.1 <- Heatmap(mat, name = "Spearman correlation",
               column_names_gp = grid::gpar(fontsize = 0),
               row_names_gp = grid::gpar(fontsize = 0),
-              right_annotation = row_an,
+              right_annotation = row_an1,
               heatmap_legend_param = list(legend_direction = "horizontal")) 
-draw(ht, heatmap_legend_side = "bottom")
-dev.off()
+draw(ht.1, heatmap_legend_side = "bottom")
+
+#26-50
+row_an2 <- rowAnnotation(Genes = anno_mark(at = g1_pos,
+                                           labels = rownames(mat)[g1_pos],
+                                           labels_gp = gpar(fontsize = 7),
+                                           link_width = unit(2.5, "mm"),
+                                           padding = unit(1, "mm"),
+                                           link_gp = gpar(lwd = 0.5)))
+
+ht.2 <- Heatmap(mat, name = "Spearman correlation",
+                column_names_gp = grid::gpar(fontsize = 0),
+                row_names_gp = grid::gpar(fontsize = 0),
+                right_annotation = row_an2,
+                heatmap_legend_param = list(legend_direction = "horizontal")) 
+draw(ht.2, heatmap_legend_side = "bottom")
+
+#51-100
+row_an3 <- rowAnnotation(Genes = anno_mark(at = position3,
+                                           labels = rownames(mat)[position3],
+                                           labels_gp = gpar(fontsize = 7),
+                                           link_width = unit(2.5, "mm"),
+                                           padding = unit(1, "mm"),
+                                           link_gp = gpar(lwd = 0.5)))
+
+ht.3 <- Heatmap(mat, name = "Spearman correlation",
+                column_names_gp = grid::gpar(fontsize = 0),
+                row_names_gp = grid::gpar(fontsize = 0),
+                right_annotation = row_an3,
+                heatmap_legend_param = list(legend_direction = "horizontal")) 
+draw(ht.3, heatmap_legend_side = "bottom")
+
+#101-125
+row_an4 <- rowAnnotation(Genes = anno_mark(at = position4,
+                                           labels = rownames(mat)[position4],
+                                           labels_gp = gpar(fontsize = 7),
+                                           link_width = unit(2.5, "mm"),
+                                           padding = unit(1, "mm"),
+                                           link_gp = gpar(lwd = 0.5)))
+
+ht.4 <- Heatmap(mat, name = "Spearman correlation",
+                column_names_gp = grid::gpar(fontsize = 0),
+                row_names_gp = grid::gpar(fontsize = 0),
+                right_annotation = row_an4,
+                heatmap_legend_param = list(legend_direction = "horizontal")) 
+draw(ht.4, heatmap_legend_side = "bottom")
+
+#126-150
+row_an5 <- rowAnnotation(Genes = anno_mark(at = position5,
+                                           labels = rownames(mat)[position5],
+                                           labels_gp = gpar(fontsize = 7),
+                                           link_width = unit(2.5, "mm"),
+                                           padding = unit(1, "mm"),
+                                           link_gp = gpar(lwd = 0.5)))
+
+ht.5 <- Heatmap(mat, name = "Spearman correlation",
+                column_names_gp = grid::gpar(fontsize = 0),
+                row_names_gp = grid::gpar(fontsize = 0),
+                right_annotation = row_an5,
+                heatmap_legend_param = list(legend_direction = "horizontal")) 
+draw(ht.5, heatmap_legend_side = "bottom")
+
+#151-169
+row_an6 <- rowAnnotation(Genes = anno_mark(at = position6,
+                                           labels = rownames(mat)[position6],
+                                           labels_gp = gpar(fontsize = 7),
+                                           link_width = unit(2.5, "mm"),
+                                           padding = unit(1, "mm"),
+                                           link_gp = gpar(lwd = 0.5)))
+
+ht.6 <- Heatmap(mat, name = "Spearman correlation",
+                column_names_gp = grid::gpar(fontsize = 0),
+                row_names_gp = grid::gpar(fontsize = 0),
+                right_annotation = row_an6,
+                heatmap_legend_param = list(legend_direction = "horizontal")) 
+draw(ht.6, heatmap_legend_side = "bottom")
+
+DefaultAssay(CD8) <- "RNA" #Put "RNA" as default assay
 
 #clean workspace
 rm(list=setdiff(ls(), "CD8"))
@@ -400,7 +485,7 @@ CD8 <- RenameIdents(CD8,
                     "5" = "Naive", 
                     "6" = "SL", 
                     "7" = "SL", 
-                    "8" = "Naive", 
+                    "8" = "Naive",
                     "9" = "SL",
                     "10" = "StL",
                     "11" = "StL",
@@ -821,33 +906,6 @@ p.sl <- FeaturePlot(CD8, "sig_sl1", pt.size = 0.00001, order = T,  min.cutoff = 
 tiff("../plots_CD8/p.featcust.tiff", width = 5*210, height = 5*210, res = 300, pointsize = 5)     
 p.sig <- plot_grid(p.naive, p.stl, p.actex, p.sl, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
-dev.off()
-
-#DGE by condition
-Idents(CD8) <- "group_id"
-mark.cond <- FindAllMarkers(CD8)
-
-mark.cond %>% 
-  dplyr::group_by(cluster) %>%
-  top_n(n = 10, wt = avg_log2FC) -> top10
-df <- data.frame(top10$cluster, top10$gene)
-df  <-  reshape(transform(df, indx = ave(as.character(top10.cluster), top10.cluster, FUN = seq)), 
-                idvar = "indx", timevar = "top10.cluster", direction = "wide") 
-colnames(df) <- gsub("top10.gene.", "", colnames(df))
-
-all_markers <- df %>%
-  select(-indx) %>% 
-  unclass() %>% 
-  stack() %>%
-  pull(values) %>%
-  unique() %>%
-  .[!is.na(.)]
-
-#by condition
-tiff("../plots/p.dot_cond.tiff", width = 5*280, height = 5*300, res = 300, pointsize = 5)     
-Clustered_DotPlot(CD8, all_markers, colors_use_exp = pal_exp, group.by = "group_id",
-                  exp_color_min = -1, exp_color_max = 1, colors_use_idents = pal_ident,
-                  x_lab_rotate = TRUE, k =2)
 dev.off()
 
 #Drivers of SL and ActEx
@@ -1496,16 +1554,9 @@ dev.off()
 
 tiff("../plots_CD8/clonoContour.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
 p <- clonalOverlay(CD8.clono, reduction = "umap", 
-                   freq.cutpoint = 30, bins = 25, facet = "group_id") + 
+                   freq.cutpoint = 20, bins = 25, facet = "group_id") + 
   guides(color = FALSE) 
 p + theme_void(base_size = 20) + scale_color_manual(values=pal_ident)
-dev.off()
-
-tiff("../plots_CD8/clonoContourRespTmp.tiff", width = 5*350, height = 5*400, res = 300, pointsize = 5)     
-p <- clonalOverlay(CD8.clono, reduction = "umap", 
-                   freq.cutpoint = 30, bins = 25, facet = "RespTmp") 
-p + theme_void(base_size = 20) + scale_color_manual(values=pal_ident) +
-  theme(legend.position = "none") 
 dev.off()
 
 CD8.clono_list <- SplitObject(CD8.clono, split.by = "RespTmp")
@@ -1705,6 +1756,10 @@ tiff("../plots_CD8/heatSL.tiff", width = 5*330, height = 5*150, res = 300, point
 p <- draw(h.heat.sl1sl2, heatmap_legend_side = "bottom", align_heatmap_legend = "heatmap_center", 
           show_annotation_legend = FALSE)
 p
+dev.off()
+
+tiff("../plots_CD8/vlnSL.tiff", width = 5*250, height = 5*100, res = 300, pointsize = 5)     
+Stacked_VlnPlot(CD8, features = c("CX3CR1", "ZNF683"), colors_use = pal_ident)
 dev.off()
 
 #######################
