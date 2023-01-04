@@ -1,4 +1,4 @@
-##CD4 This script can be organized into n parts
+##CD4 This script can be organized into 2 parts
 
 ##A)Subclustering and use of DGE to annotate clusters
 #1) Subclustering as suggested here https://github.com/satijalab/Seurat/issues/2087 by timoast
@@ -15,40 +15,22 @@
 rm(list = ls())
 
 library(Seurat)
-library(scGate)
-library(slingshot)
 library(ggplot2)
 library(cowplot)
 library(RColorBrewer)
 library(magrittr)
 library(tidyr)
-library(scRepertoire)
 library(SeuratWrappers)
-library(hdf5r)
 library(circlize)
 library(ComplexHeatmap)
 library(tibble)
 library(msigdbr)
-library(scater)
-library(gam)
-library(tradeSeq)
 library(stringr)
 library(CD8Disk)
-library(viridis)
-library(EnhancedVolcano)
 library(scCustomize)
-library(vip)
-library(tidymodels)
 library(scProportionTest)
-library(fgsea)
 library(dplyr)
 library(limma)
-library(ggplotify)
-library(miloR)
-library(rcna)
-library(glue)
-library(ggnetwork)
-library(ggforce)
 library(speckle)
 
 
