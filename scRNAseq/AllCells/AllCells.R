@@ -83,7 +83,7 @@ sce$batch <- md$Batch[m]
 sce <- sce[rowSums(counts(sce) > 0) > 0, ]
 dim(sce)
 
-#6) Infer and remove doublets (reference: https://github.com/chris-mcginnis-ucsf/DoubletFinder)
+#6) Infer and remove doublets (reference: https://github.com/kostkalab/scds)
 # split SCE by sample 
 cs_by_s <- split(colnames(sce), sce$sample_id)
 sce_by_s <- lapply(cs_by_s, function(cs) sce[, cs])
