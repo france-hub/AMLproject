@@ -1,4 +1,4 @@
-##CD8 This script can be organized into n parts
+##CD8 This script can be organized into 7 parts
 
 ##A)Subclustering and use of custom and published markers along with bulk-RNA seq results and DGE to annotate clusters
 #1) Subclustering as suggested here https://github.com/satijalab/Seurat/issues/2087 by timoast
@@ -136,6 +136,7 @@ p.cd8 <- DimPlot_scCustom(CD8, label = TRUE, colors_use = pal_ident, pt.size = 0
   theme_void() +
   theme(legend.position="none") 
 
+#Save Fig. 2A 
 tiff("../plots_CD8/cd8clus.tiff", width = 5*200, height = 5*200, res = 300, pointsize = 5)     
 p.cd8
 dev.off()
@@ -187,14 +188,19 @@ sig_naive <- list(sig$`Naive (from Szabo et al. 2019)`[!is.na(sig$`Naive (from S
 CD8 <- AddModuleScore(CD8, features = sig_naive, name = "sig_naive")
 p.naive <- FeaturePlot(CD8, "sig_naive1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), breaks=c(0.03, 0.18), label = c("Min", "Max")) +   
-  ggtitle("Naive (from Szabo et al. 2019)") + theme(plot.title = element_text(size = 15, face = "bold"))
+  ggtitle("Naive (from Szabo et al. 2019)") + theme(plot.title = element_text(size = 15, face = "bold")) + NoLegend() + NoAxes()
 p.naive
 
 sig_stem <- list(sig$`Stemness (from Pace et al. 2018)`[!is.na(sig$`Stemness (from Pace et al. 2018)`)])
 CD8 <- AddModuleScore(CD8, features = sig_stem, name = "sig_stem")
 p.stem <- FeaturePlot(CD8, "sig_stem1", pt.size = 0.000001, order = T, min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position="none") +
-  ggtitle("Stemness (from Pace et al. 2018)") + theme(plot.title = element_text(size = 15, face = "bold"))
+  ggtitle("Stemness (from Pace et al. 2018)") + theme(plot.title = element_text(size = 15, face = "bold")) + NoLegend()+ NoAxes()
+
+p.sig <- plot_grid(p.naive, p.stem, nrow = 1)
+tiff("../plots_CD8/p.sig.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
+plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .1)) 
+dev.off()
 
 #Bulk senescence signature
 genes <- readxl::read_xlsx("../signatures/sig.xlsx", sheet = 2)
@@ -1760,6 +1766,24 @@ dev.off()
 
 tiff("../plots_CD8/vlnSL.tiff", width = 5*250, height = 5*100, res = 300, pointsize = 5)     
 Stacked_VlnPlot(CD8, features = c("CX3CR1", "ZNF683"), colors_use = pal_ident)
+dev.off()
+
+#Trm markers
+p <-FeaturePlot(CD8, features = c("CXCR6", "ITGAE"), combine=F, pt.size=0.00001, order=T) 
+
+for(i in 1:length(p)) {
+  p[[i]] <- p[[i]] + NoAxes()+theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) +
+    scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position = "none")
+}
+
+tiff("../plots_CD8/p.Trm.umap.tiff", width = 5*300, height = 5*500, res = 300, pointsize = 5)     
+p.markers <- cowplot::plot_grid(plotlist = p, nrow =2)
+p.mar_leg <- plot_grid(p.markers, legend, ncol = 1, rel_heights = c(1, .1))
+p.mar_leg
+dev.off()
+
+tiff("../plots_CD8/p.Trm.vln.tiff", width = 5*300, height = 5*500, res = 300, pointsize = 5)     
+Stacked_VlnPlot(CD8, features = c("CD69", "CXCR6", "ITGAE"), colors_use = pal_ident)
 dev.off()
 
 #######################
