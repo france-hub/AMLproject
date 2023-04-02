@@ -3,7 +3,7 @@
 ##A)Define/create the directories where our files are located, merge 2 experiments, perform Arcsinh transformation and create flowSet
 #1) Define the directory where this script is located
 #2) Define the directory where the fcs files, for the two experiments, are located 
-#NB: we are using pregated CD8+ fcs files obtained with the flowJo
+#NB: we are using pregated CD8+ fcs files obtained with flowJo software
 #3) Define workingDirectory and create the directory
 #4) Create flowsets for the two experiments and merge the two flowsets
 #5) Perform Arcsinh transformation (#Arcsinh transformation (this is necessary when you have flow citometry data in fcs format instead of csv)
@@ -50,10 +50,11 @@ library(stringr)
 library(SingleCellExperiment)
 library(scCustomize)
 library(ComplexHeatmap)
+library(cowplot)
 
-##########################################################################################################
+#####################################################################################################################################
 #A)Define/create the directories where our files are located, merge 2 experiments, perform Arcsinh transformation and create flowSet
-##########################################################################################################
+#####################################################################################################################################
 
 #1) Define the directory where this script is located
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -233,7 +234,7 @@ sce$condition <- ifelse(sce$condition == "CR_BM_base", "Res_bas",
                                ifelse(sce$condition == "CR_BM_post", "Res_post",
                                       ifelse(sce$condition == "NR_BM_post", "NonRes_post", "HD"))))
 
-#Heatmap with annotations
+#Heatmap with annotations 
 plotExprHeatmap(sce, features = "type", 
                 by = "cluster_id", k = "meta7", m = "cluster_annotation", scale = "last")
 p <- plotExprHeatmap(sce, features = "type",  hm_pal = pal_exp, k_pal = pal_ident,
@@ -258,15 +259,9 @@ heat <- Heatmap(t(p@matrix),
                 heatmap_legend_param = lgd_aes,
                 column_names_gp = gpar(fontsize = 12))
 
+#Save Fig. 1B
 tiff("./plots/heat.tiff", width = 5*150, height = 5*300, res = 300, pointsize = 5)     
-draw(heat, heatmap_legend_side = "bottom")
-dev.off()
-
-#UMAP with annotations
-tiff("./plots/umap.tiff", width = 5*900, height = 5*900, res = 300, pointsize = 5)     
-plot <- plotDR(sce, "UMAP", color_by = "cluster_annotation") + facet_wrap("condition")
-plot + guides(color = guide_legend(ncol = 1, override.aes = list(size = 10))) + geom_density2d(binwidth = 0.006, colour = "black") + 
-  theme(strip.text = element_text(size=15)) +theme(legend.text=element_text(size=15), legend.title=element_text(size=15))
+draw(heat, heatmap_legend_side = "bottom") 
 dev.off()
 
 #Reorder UMAP and change labeling
@@ -308,118 +303,17 @@ p.list <- lapply(seq_along(p.list), function(x) p.list[[x]] +
 p.listHD <- p.list[[1]]
 p.listAML <- p.list
 p.listAML[[1]] <- NULL
+
+#Save Fig. 1C
 tiff("./plots/umap_AML.tiff", width = 5*700, height = 5*700, res = 300, pointsize = 5)     
 plot_grid(p.listAML[[1]],p.listAML[[2]], p.listAML[[3]],p.listAML[[4]], nrow = 2)
 dev.off()
 
+#Save Supplementary Fig. 1A
 tiff("./plots/umap_HD.tiff", width = 5*350, height = 5*350, res = 300, pointsize = 5)     
 p.listHD 
 dev.off()
 
-
-library(cowplot)
-p.list1 <- plot_grid(NULL, p.list[[1]], NULL, rel_widths = c(0.5, 1, 0.5), nrow =1)
-p.list2 <- plot_grid(p.list[[2]], NULL, p.list[[3]],p.list[[4]], NULL, p.list[[5]],
-                     rel_widths = c(1, -0.6, 1, 1, -0.6, 1), nrow =2)
-
-tiff("./plots/umap_HD.tiff", width = 5*350, height = 5*350, res = 300, pointsize = 5)     
-p.listHD
-dev.off()
-
-library(ggpubr)
-p <- plotAbundances(sce, k = "cluster_annotation", by = "cluster_id")
-df <- p$data
-p.list <- splitFacet(p)
-Comparisons <- combn(levels(factor(df$condition)), 2, simplify = F)
-pal_box <- pal_ident[c(2,6,19, 14, 35)]
-plots <- lapply(p.list, function(box)
-  ggplot(p$data, aes(x = condition, y = Freq, fill = condition)) +
-    labs(x = NULL, y = "Proportion [%]") + 
-    geom_boxplot() + scale_fill_manual(values= pal_box) +
-    geom_point(aes_string(x = "condition"), position = position_jitter(width = 0.2)) +
-    theme_bw() + theme(
-      panel.grid = element_blank(),
-      strip.text = element_text(face = "bold", size = 10),
-      strip.background = element_rect(fill = NA, color = NA),
-      axis.text = element_text(color = "black"),
-      axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
-      legend.key.height  =  unit(0.8, "lines")) +
-    facet_wrap(~ cluster_id, scales = "free_y", nrow = 1) + theme(legend.position = "none") +
-    stat_compare_means(label = "p.signif",label.x = 1.5, method = "kruskal.test", hide.ns = T) +
-    stat_compare_means(label = "p.signif",comparisons = Comparisons, method = "wilcox.test",
-                       ref.group = ".all."))
-
-#############################################
-#DIFFCYT
-#############################################
-saveRDS(sce, "sce.rds") #FROM HERE
-
-sce <- readRDS("sce.rds")
-
-ei <- ei(sce)
-ei$condition <- ifelse(ei$condition == "CR_BM_base", "Res_bas", 
-                       ifelse(ei$condition == "NR_BM_base", "NonRes_bas", 
-                              ifelse(ei$condition == "CR_BM_post", "Res_post",
-                                     ifelse(ei$condition == "NR_BM_post", "NonRes_post", "HD")))) %>% as.factor()
-ei$condition <- relevel(ei$condition, ref = "Res_bas")
-(da_formula1 <- createFormula(ei, 
-                              cols_fixed = "condition", 
-                              cols_random = c("sample_id", "patient_id")))
-
-
-contrast <- createContrast(c(0, 0, 1, 0, 0))
-da_res1 <- diffcyt(sce, 
-                   formula = da_formula1, contrast = contrast,
-                   analysis_type = "DA", method_DA = "diffcyt-DA-GLMM",
-                   clustering_to_use = "cluster_annotation", verbose = FALSE)
-
-rowData(da_res1$res) #not significant
-plotClusterExprs(sce, k = "cluster_annotation", features = "type")
-
-#Try only baseline
-sce.bas <- sce[,sce$condition %in% c("Res_bas", "NonRes_bas")]
-sce.bas$condition <- factor(sce.bas$condition)
-ei <- ei(sce)
-ei <- ei %>% 
-  filter(str_detect(condition , "base"))
-ei$condition <- ifelse(ei$condition == "CR_BM_base", "Res_bas", "NonRes_bas") %>% as.factor()
-
-(da_formula1 <- createFormula(ei, 
-                              cols_fixed = "condition", 
-                              cols_random = "patient_id"))
-
-plotAbundances(sce, k = "cluster_annotation", by = "cluster_id")
-
-contrast <- createContrast(c(0,0,0,1,0))
-da_res1 <- diffcyt(sce, 
-                   formula = da_formula1, contrast = contrast,
-                   analysis_type = "DA", method_DA = "diffcyt-DA-GLMM",
-                   clustering_to_use = "cluster_annotation", verbose = FALSE)
-rowData(da_res1$res) #return NAs
-
-#edgeR
-ei <- ei(sce)
-design <- createDesignMatrix(
-  ei, cols_design = c("condition", "patient_id")
-)
-ei$condition <- ifelse(ei$condition == "CR_BM_base", "Res_bas", 
-                       ifelse(ei$condition == "NR_BM_base", "NonRes_bas", 
-                              ifelse(ei$condition == "CR_BM_post", "Res_post",
-                                     ifelse(ei$condition == "NR_BM_post", "NonRes_post", "HD")))) %>% as.factor()
-ei$condition <- relevel(ei$condition, ref = "Res_bas")
-
-head(design) #check design matrix
-which(colnames(design) %in% c("patient_idHCMB", "patient_idV7")) #matrix not full rank: "patient_idHCMB", "patient_idV7" not estimable
-design <- design[,-c(27,32)] # not a full rank matrix, drop column 20
-
-#base NR vs base CR
-ncol(design)
-contrast1 <- createContrast(c(0, 0, 0, 1, 0, rep(0, 25)))
-out_DA1 <- diffcyt(sce, design = design, contrast = contrast1, method_DA = "diffcyt-DA-edgeR",
-                   clustering_to_use = "cluster_annotation", verbose = TRUE, subsampling = TRUE, transform = FALSE)
-topTable(out_DA1, format_vals = TRUE)#all significant!
-sce <- readRDS("sce.rds")
-levels(factor(sce$sample_id))
 p <- plotAbundances(sce, k = "cluster_annotation")
 df <- p$data
 df <- df %>% mutate(group_id = case_when(str_detect(sample_id, "CR") ~ "Res",
@@ -441,11 +335,17 @@ barplot <- ggplot(df, aes(x = group_id, y = Freq, fill = cluster_id)) +
     legend.text = element_text(size = 12),
     legend.key.size = unit(0.4, "cm")) 
 
+#Save Fig. 1D
+tiff("./plots/barplot.tiff", width = 5*250, height = 5*500, res = 300, pointsize = 5)     
+barplot
+dev.off()
+
+#Ratio StL/SL (work in progress)
 sce$cluster_annotation <- cluster_ids(sce, "cluster_annotation")
 p <- plotCounts(sce, group_by = "sample_id", color_by = "cluster_annotation")
 df.2 <- p$data
 df.2 <- df.2 %>% dplyr::filter(cluster_annotation %in% c("StL", "SL"))
-library(tidyr)
+
 df.2 <- df.2 %>% spread(cluster_annotation, value) %>% mutate(ratio = StL/SL)
 df.2 <- df.2 %>% mutate(group_id = case_when(str_detect(sample_id, "CR_BM_base") ~ "Res_bas",
                                              str_detect(sample_id, "HC") ~ "HD",
@@ -457,7 +357,7 @@ ggqqplot(df.2_AML$ratio)
 shapiro.test(df.2_AML$ratio)
 ggdensity(df.2_AML$ratio)
 df.2$ratio
-library(ggpubr)
+
 Comparisons <- combn(levels(factor(df.2$group_id)), 2, simplify = F)
 sig_comp <- list(c("HD", "NonRes_bas"), c("HD", "NonRes_post"))
 p.ttest1 <- ggplot(df.2, aes_string(x= "group_id", y = "StL/SL", fill = "group_id"))+
@@ -504,25 +404,10 @@ p.ttest2 <- ggplot(df.2_AMLvHD, aes_string(x= "group_id", y = "ratio", fill = "g
     axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 15)) +
   stat_compare_means(label = "p.signif",label.x = 1.5, hide.ns = TRUE, label.y = 9.5, method = "wilcox.test")
 
-?stat_compare_means
 tiff("./plots/boxplot2.tiff", width = 5*200, height = 5*150, res = 300, pointsize = 5)     
 p.ttest2 
 dev.off()
 
-p.ttest3 <- ggplot(df.2_AMLvHD, aes_string(x= "group_id", y = "SL", fill = "group_id"))+
-  labs(x = NULL, y = "SL") +
-  geom_boxplot() + scale_fill_manual(values = pal_ident[c(14,11)]) +
-  geom_point(aes_string(x = "group_id"), position = position_jitter(width = 0.2)) +
-  theme_bw() + theme(
-    panel.grid = element_blank(),
-    strip.text = element_text(face = "bold"),
-    strip.background = element_rect(fill = NA, color = NA),
-    axis.text = element_text(color = "black"),
-    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 15)) +
-  stat_compare_means(label =  "p.signif", label.x = 1.5, method = "wilcox.test")
+saveRDS(sce, "sce.rds") #FROM HERE
 
-
-tiff("./plots/boxplot3.tiff", width = 5*100, height = 5*150, res = 300, pointsize = 5)     
-p.ttest3
-dev.off()
-
+sce <- readRDS("sce.rds")
