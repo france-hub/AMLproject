@@ -100,7 +100,6 @@ library(SCENIC)
 library(arrow)
 
 setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
-CD8 <-readRDS("CD8sub_test.rds")
 
 #######################################################################################################################
 #A) Subclustering and use of custom and published markers along with bulk-RNA seq results and DGE to annotate clusters
@@ -132,9 +131,7 @@ DefaultAssay(CD8) <- "RNA" #Put "RNA" as default assay
 DimPlot(CD8, split.by = "group_id")
 #Visualize the new subcluster and define custom palette
 pal_ident <- DiscretePalette_scCustomize(num_colors = 40, palette = "ditto_seq")
-p.cd8 <- DimPlot_scCustom(CD8, label = TRUE, colors_use = pal_ident, pt.size = 0.00001, label.size = 6) + 
-  theme_void() +
-  theme(legend.position="none") 
+p.cd8 <- DimPlot_scCustom(CD8, label = TRUE, colors_use = pal_ident, pt.size = 0.00001, label.size = 6, figure_plot = TRUE) & NoLegend()
 
 #Save Fig. 2A 
 tiff("../plots_CD8/cd8clus.tiff", width = 5*200, height = 5*200, res = 300, pointsize = 5)     
@@ -142,7 +139,6 @@ p.cd8
 dev.off()
 
 #2) Use of custom single markers and visualize as DotPlot and FeaturePlot
-
 #DotPlot
 features <- c("CCR7", "TCF7", "LEF1", "SELL", "IL7R", "SLAMF6", 
               "CXCR3", "GZMK", "CCL3", "CCL4", "CCL5", "XCL1", 
@@ -165,7 +161,7 @@ p.CD8 <- FeaturePlot(CD8, features = "CD8A", pt.size = 0.00001, order = T) +
 #get the legend from plot with same scale palette
 legend <- get_legend(
   p.CD8 + theme(legend.box.margin = margin(0, 0, 0, 12), legend.position = "bottom",
-                  legend.justification = "center") 
+                legend.justification = "center") 
 )
 
 p <-FeaturePlot(CD8, features = c("TCF7", "IL7R", "GZMK", "CD69", "PDCD1", "GZMB", "PRF1", "GNLY"), combine=F, pt.size=0.00001, order=T) 
@@ -175,6 +171,7 @@ for(i in 1:length(p)) {
     scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position = "none")
 }
 
+#Save Fig. 2C
 tiff("../plots_CD8/p.markers.umap.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 p.markers <- cowplot::plot_grid(plotlist = p, nrow =2)
 p.mar_leg <- plot_grid(p.markers, legend, ncol = 1, rel_heights = c(1, .1))
@@ -198,6 +195,8 @@ p.stem <- FeaturePlot(CD8, "sig_stem1", pt.size = 0.000001, order = T, min.cutof
   ggtitle("Stemness (from Pace et al. 2018)") + theme(plot.title = element_text(size = 15, face = "bold")) + NoLegend()+ NoAxes()
 
 p.sig <- plot_grid(p.naive, p.stem, nrow = 1)
+
+#Save Supplementary Fig. S4
 tiff("../plots_CD8/p.sig.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .1)) 
 dev.off()
@@ -213,6 +212,7 @@ p.sen <- FeaturePlot(CD8, features = "sen1", pt.size = 0.1, order = T,  min.cuto
                          breaks=c(0.09, 0.42), label = c("0", "Maximum")) + 
   ggtitle("") + theme(plot.title = element_text(size = 15, face = "bold"))
 
+#Save Fig. 2G
 tiff("../plots_CD8/score_sen.tiff", width = 5*180, height = 5*200, res = 300, pointsize = 5)     
 p.sen <- p.sen + theme_void() + theme(legend.position = "none") + ggtitle("n = 43 genes") + theme(plot.title = element_text(hjust = 0.5))
 plot_grid(p.sen, legend, ncol = 1, rel_heights = c(1, .1))
@@ -220,13 +220,14 @@ dev.off()
 
 #Signature dysfunction June et al.
 dys.genes <- readxl::read_xlsx("../signatures/sig.xlsx", sheet = 1)
-dys <- list(dys.genes$`Dysfunction (Good et al. 2021)`)
+dys <- list(dys.genes$`Dysfunction (Good et al. 2021)`[!is.na(sig$`Dysfunction (Good et al. 2021)`)])
 CD8 <- AddModuleScore(CD8, features = dys, name = "dys")
 p.dys <- FeaturePlot(CD8, features = "dys1", pt.size = 0.1, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   theme(legend.position="none") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")),
                          breaks=c(0.09, 0.42), label = c("0", "Maximum")) 
 
+#Save Fig. 2H
 tiff("../plots_CD8/scores_dys.tiff", width = 5*180, height = 5*200, res = 300, pointsize = 5)     
 p.dys <- p.dys + theme_void() + theme(legend.position = "none") + ggtitle("Dysfunction score (Good et al. 2021)") + 
   theme(plot.title = element_text(hjust = 0.5))
@@ -283,6 +284,7 @@ StackedVlnPlot<- function(obj, features,
   return(p)
 }
 
+#Save Fig. 2J
 tiff("../plots_CD8/stackvln.tiff", width = 5*180, height = 5*150, res = 300, pointsize = 5)     
 StackedVlnPlot(obj = CD8, features = c("Senescence", "Dysfunction")) & scale_fill_manual(values = pal_ident)
 dev.off()
@@ -292,10 +294,12 @@ data<- CD8@assays$integrated@scale.data
 data<- t(data) %>% as.data.frame()
 data$Senescence <- CD8$Senescence
 data$Dysfunction <- CD8$Dysfunction
-  
+
 data$pc <- predict(prcomp(~Senescence+Dysfunction, data))[,1]
 
 #Corr plot
+
+#Save Fig. 2I
 tiff("../plots_CD8/corr.tiff", width = 5*200, height = 5*200, res = 300, pointsize = 5)     
 ggplot(data, aes(x = Senescence, y = Dysfunction, color = pc)) +
   geom_point(shape = 16, size = 3, alpha = .4) +
@@ -353,16 +357,17 @@ mat <- mat %>% as.data.frame() %>%  select(names(all_m)) %>% as.matrix()
 lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
                 title = "Expression")
 h.heat.NoAnnot <- Heatmap(t(mat),
-                       cluster_rows = TRUE,
-                       cluster_columns = TRUE,
-                       row_names_side = "left",
-                       row_names_gp = grid::gpar(fontsize = 10),
-                       heatmap_legend_param = lgd_aes,
-                       column_names_gp = gpar(fontsize = 7))
+                          cluster_rows = TRUE,
+                          cluster_columns = TRUE,
+                          row_names_side = "left",
+                          row_names_gp = grid::gpar(fontsize = 10),
+                          heatmap_legend_param = lgd_aes,
+                          column_names_gp = gpar(fontsize = 7))
 
+#Save Fig. 2E
 tiff("../plots_CD8/heatNoAnnot.tiff", width = 5*500, height = 5*200, res = 300, pointsize = 5)     
 p <- draw(h.heat.NoAnnot, heatmap_legend_side = "bottom", align_heatmap_legend = "heatmap_center", 
-     show_annotation_legend = FALSE)
+          show_annotation_legend = FALSE)
 p
 dev.off()
 
@@ -386,19 +391,20 @@ position5 <- which(rownames(mat) %in% rownames(mat2)[100:125])
 position6 <- which(rownames(mat) %in% rownames(mat2)[126:150])
 position7 <- which(rownames(mat) %in% rownames(mat2)[151:169])
 
+#Fig. 2D
 #0-25
 row_an1 <- rowAnnotation(Genes = anno_mark(at = position1,
-                                          labels = rownames(mat)[position1],
-                                          labels_gp = gpar(fontsize = 7),
-                                          link_width = unit(2.5, "mm"),
-                                          padding = unit(1, "mm"),
-                                          link_gp = gpar(lwd = 0.5)))
+                                           labels = rownames(mat)[position1],
+                                           labels_gp = gpar(fontsize = 7),
+                                           link_width = unit(2.5, "mm"),
+                                           padding = unit(1, "mm"),
+                                           link_gp = gpar(lwd = 0.5)))
 
 ht.1 <- Heatmap(mat, name = "Spearman correlation",
-              column_names_gp = grid::gpar(fontsize = 0),
-              row_names_gp = grid::gpar(fontsize = 0),
-              right_annotation = row_an1,
-              heatmap_legend_param = list(legend_direction = "horizontal")) 
+                column_names_gp = grid::gpar(fontsize = 0),
+                row_names_gp = grid::gpar(fontsize = 0),
+                right_annotation = row_an1,
+                heatmap_legend_param = list(legend_direction = "horizontal")) 
 draw(ht.1, heatmap_legend_side = "bottom")
 
 #26-50
@@ -505,16 +511,13 @@ CD8$clusters<- CD8@active.ident
 ################################
 
 #1) Plot and look at clusters proportions and densities across samples, between conditions (group_id)
-#Cluster distribution across all samples
-tiff("../plots_CD8/barplotCD8.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
-ggplot(CD8@meta.data, aes(x=clusters, fill=sample_id)) + geom_bar(position = "fill") + theme_bw() + 
-  scale_fill_manual(values= pal_ident) + xlab("") + ylab("") + coord_flip()
-dev.off()
-
+#Save Fig. 3A
 tiff("../plots_CD8/UMAP_ann.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
 p.ann <- DimPlot_scCustom(CD8, label = TRUE, label.size = 4, colors_use = pal_ident[1:4], pt.size = 0.00001, figure_plot = T) + NoLegend()
-p.ann 
+p.ann & NoLegend()
+dev.off()
 
+#Save Fig. 3C
 tiff("../plots_CD8/UMAP_groupId.tiff", width = 5*300, height = 5*600, res = 300, pointsize = 5)     
 p.abund <- DimPlot_scCustom(CD8, label = TRUE, split.by = "group_id", colors_use = pal_ident, split_seurat = TRUE, label.size = 6, num_columns = 1) + 
   theme_minimal(base_size = 35) + 
@@ -526,6 +529,7 @@ p.abund <- DimPlot_scCustom(CD8, label = TRUE, split.by = "group_id", colors_use
 p.abund 
 dev.off()
 
+#Save Fig. 3D
 tiff("../plots_CD8/UMAP_density.tiff", width = 5*500, height = 5*180, res = 300, pointsize = 5)    
 CD8.dens <- subset(CD8, group_id %in% c("Res", "NonRes"))
 p.dens <- DimPlot(CD8.dens, reduction = 'umap', split.by = "RespTmp")  + NoLegend() + NoAxes() 
@@ -537,45 +541,95 @@ dev.off()
 #Permutation test 
 prop_test <- sc_utils(CD8)
 
-prop_test_ResVSNonRes <- permutation_test(
+prop_test_R.basVSNR.bas <- permutation_test(
   prop_test, cluster_identity = "clusters",
-  sample_1 = "Res", sample_2 = "NonRes",
-  sample_identity = "group_id"
+  sample_1 = "Res_bas", sample_2 = "NonRes_bas",
+  sample_identity = "RespTmp"
 )
 
-prop_test_HDVSRes <- permutation_test(
+prop_test_R.postVSNR.post <- permutation_test(
   prop_test, cluster_identity = "clusters",
-  sample_1 = "HD", sample_2 = "Res",
-  sample_identity = "group_id"
+  sample_1 = "Res_post", sample_2 = "NonRes_post",
+  sample_identity = "RespTmp"
 )
 
-prop_test_HDVSNonRes <- permutation_test(
-  prop_test, cluster_identity = "clusters",
-  sample_1 = "HD", sample_2 = "NonRes",
-  sample_identity = "group_id"
-)
-
-p.perm1 <- permutation_plot(prop_test_ResVSNonRes, log2FD_threshold = log2(2)) + 
-  ggtitle("Res VS NonRes") + 
+p.perm1 <- permutation_plot(prop_test_R.basVSNR.bas, log2FD_threshold = log2(2)) + 
+  ggtitle("Res_bas VS NonRes_bas") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
-p.perm2 <- permutation_plot(prop_test_HDVSRes, log2FD_threshold = log2(2))+
-  ggtitle("HD VS Res") + 
+p.perm2 <- permutation_plot(prop_test_R.postVSNR.post, log2FD_threshold = log2(2))+
+  ggtitle("Res_post VS NonRes_post") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue"))
+
+p.perm_R_NR <- plot_grid(p.perm1, p.perm2, rel_widths = c(1,1.9), nrow = 1)
+
+#Save Fig. 3E
+tiff("../plots_CD8/sigPerm.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
+p.perm_R_NR
+dev.off()
+
+prop_test_R.basVSHD <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "Res_bas", sample_2 = "HD",
+  sample_identity = "RespTmp"
+)
+
+prop_test_NR.basVSHD <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "NonRes_bas", sample_2 = "HD",
+  sample_identity = "RespTmp"
+)
+
+prop_test_R.postVSHD <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "Res_post", sample_2 = "HD",
+  sample_identity = "RespTmp"
+)
+
+prop_test_NR.postVSHD <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "NonRes_post", sample_2 = "HD",
+  sample_identity = "RespTmp"
+)
+
+p.perm3 <- permutation_plot(prop_test_R.basVSHD, log2FD_threshold = log2(2)) + 
+  ggtitle("Res_bas VS HD") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
+p.perm4 <- permutation_plot(prop_test_NR.basVSHD, log2FD_threshold = log2(2))+
+  ggtitle("NonRes_bas VS HD") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue")) +  theme(legend.position="none")
-p.perm3 <- permutation_plot(prop_test_HDVSNonRes, log2FD_threshold = log2(2)) + 
+p.perm5 <- permutation_plot(prop_test_R.postVSHD, log2FD_threshold = log2(2)) + 
+  ggtitle("Res_post VS HD") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
+p.perm6 <- permutation_plot(prop_test_NR.postVSHD, log2FD_threshold = log2(2)) + 
   ggtitle("HD VS NonRes") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue"))
-?permutation_plot
-p.perm <- plot_grid(p.perm1, p.perm2, p.perm3, rel_widths = c(1,1,1.9), nrow = 1)
+legend <- get_legend(
+  p.perm6 + theme(legend.box.margin = margin(0, 0, 0, 12),
+                legend.justification = "center") 
+)
+p.perm6 <- p.perm6 + theme(legend.position="none")
+p.perm_HD.Resp <- plot_grid(p.perm3, p.perm4, p.perm5, p.perm6, nrow = 2)
 
-tiff("../plots_CD8/sig.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
-p.perm
+#Save Fig. S6
+tiff("../plots_CD8/permHD_resp.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
+p.perm_HD.Resp + legend
 dev.off()
+
+#######################
+#Code Review form here
+#######################
 
 #Speckle
 props <- getTransformedProps(CD8$clusters, CD8$sample_id,
@@ -801,7 +855,7 @@ mark %>% dplyr::filter(!str_detect(rownames(mark), "^RP[SL]")) %>%
 df <- data.frame(top10$cluster, top10$gene)
 df <- df %>% distinct(top10.gene, .keep_all = TRUE) 
 df  <-  reshape(transform(df, indx = ave(as.character(top10.cluster), top10.cluster, FUN = seq)), 
-              idvar = "indx", timevar = "top10.cluster", direction = "wide") 
+                idvar = "indx", timevar = "top10.cluster", direction = "wide") 
 colnames(df) <- gsub("top10.gene.", "", colnames(df))
 df <- df %>% relocate(SL, .after = ActEx)
 
@@ -1002,7 +1056,7 @@ dev.off()
 clusterLabels <- CD8$clusters
 sceCD8 <- as.SingleCellExperiment(CD8, assay = "RNA")
 sds <- slingshot(sceCD8, clusterLabels = clusterLabels, 
-                  allow.breaks = TRUE, stretch = 2, reducedDim = "UMAP", start.clus = "Naive") #Calcualting the trajectory
+                 allow.breaks = TRUE, stretch = 2, reducedDim = "UMAP", start.clus = "Naive") #Calcualting the trajectory
 sds <- SlingshotDataSet(sds)
 
 df <- bind_cols(
@@ -1550,7 +1604,7 @@ md <- CD8.clono@meta.data
 
 #Define hyper and large as expanded, all the others as not expanded
 md <- md %>% mutate(`Clonal expansion` = case_when(cloneType %in% c("Hyperexpanded (100 < X <= 500)","Large (20 < X <= 100)") ~ 'Expanded',
-                                           TRUE ~ "Not Expanded"))
+                                                   TRUE ~ "Not Expanded"))
 CD8.clono@meta.data <- md
 CD8.clono$`Clonal expansion` %>% as.factor()
 tiff("../plots_CD8/clonalExp.tiff", width = 5*300, height = 5*250, res = 300, pointsize = 5)     
@@ -1654,9 +1708,9 @@ dev.off()
 CD8.clono <- subset(CD8, group_id %in% c("Res", "NonRes")) #subset again to include clusters2 variable
 
 table.div <- StartracDiversity(CD8.clono, 
-                       type = "group_id", 
-                       sample = "sample_id", 
-                       by = "overall", exportTable = TRUE)
+                               type = "group_id", 
+                               sample = "sample_id", 
+                               by = "overall", exportTable = TRUE)
 
 table.div <- melt(table.div)
 tran <- table.div %>% filter(variable == "tran")
@@ -1895,7 +1949,7 @@ hg38Dbs <- c('500bp'= 'hg38__refseq-r80__500bp_up_and_100bp_down_tss.mc9nr.feath
 
 #Proceed as in the tutorial
 scenicOptions <- initializeScenic(org=org, dbs = hg38Dbs, dbDir = dbDir,
-                                   datasetTitle=myDatasetTitle, nCores=10)
+                                  datasetTitle=myDatasetTitle, nCores=10)
 
 scenicOptions@inputDatasetInfo$colVars <- colVars
 scenicOptions@inputDatasetInfo$colVars <- cellInfo
@@ -1993,5 +2047,5 @@ AUCell::AUCell_plotTSNE(dr_coords, cellsAUC=selectRegulons(regulonAUC, "HIF1A"),
 FeaturePlot_scCustom(CD8, features = "HIF1A(50g)", colors_use =  viridis_plasma_light_high, order = TRUE, 
                      split.by = "group_id")
 
-
+CD8 <-readRDS("CD8sub_test.rds")
 
