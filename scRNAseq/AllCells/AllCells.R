@@ -325,13 +325,12 @@ pgd <- pgd + theme_void() + theme(legend.position="none") + theme(plot.title = e
 legend <- get_legend(
   pnkt + theme(legend.box.margin = margin(0, 0, 0, 12))
 )
+p.noAnn <- noAnn
+p.rows <- cowplot::plot_grid(pcd3, pcd8, pcd4,pnk, pmait, pgd, nrow =2)
+pr.leg <- plot_grid(p.rows, legend, rel_widths = c(1,.3))
 
-p.row1 <- cowplot::plot_grid(NULL, noAnn, pcd3, pcd8, NULL, rel_widths = c(1/3,1.5,1,1,1/3), nrow =1)
-p.row2 <- cowplot::plot_grid(NULL,  pcd4, pnk, pmait, NULL, rel_widths = c(1/3,1,1,1,1/3), nrow =1)
-p.row3 <- cowplot::plot_grid(NULL, NULL,  pgd, legend, NULL, rel_widths = c(1, 1/3,1,1,1/3), nrow =1)
-
-tiff("../plots_CD8/umap_allT.tiff", width = 5*700, height = 5*700, res = 300, pointsize = 5)     
-cowplot::plot_grid(p.row1, p.row2, p.row3, nrow = 3) +
+tiff("../plots_CD8/umap_allT.tiff", width = 5*550, height = 5*250, res = 300, pointsize = 5)     
+cowplot::plot_grid(p.noAnn, pr.leg, scale = 0.9) +
   draw_label("UMAP_1", x=0.5, y=  0, vjust=-0.5, angle= 0) +
   draw_label("UMAP_2", x=  0, y=0.5, vjust= 1.5, angle=90)
 dev.off()
