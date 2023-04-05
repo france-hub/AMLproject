@@ -11,10 +11,9 @@
 
 ##B) Analyze annotated subsets
 #1) Plot and look at clusters proportions and densities across samples, between conditions (group_id)
-#2) DA analysis using permutation test, speckle (Anova) and CNA
-#3) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
+#2) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
+#3) DA analysis using permutation test, speckle (Anova) and CNA
 #4) Plot scores obtained combining top10 and custom markers onto 2D UMAP
-#5) Compute drivers of SL and ActEx via lasso regression
 
 ##C) Compute trajectories to infer CD8+ cells differentiation path
 #1) Run Slingshot and plot the two trajectories
@@ -25,8 +24,7 @@
 #2) Use SCpubr and decoupleR for pathway activity inference
 
 ##E) TCR repertoire analysis
-#1) Export for scirpy
-#2) scRepertoire analysis
+#1) scRepertoire analysis
 
 ##F) Reclustering with increased resolution and further analyses
 #1) Reclustering and clusters frequencies across conditions
@@ -537,222 +535,6 @@ p.dens +  geom_density_2d_filled(p.dens$data, mapping = aes(x = p.dens$data[,"UM
   facet_wrap(vars(RespTmp), nrow = 1)
 dev.off()
 
-#2) DA analysis using permutation test, speckle (Anova) and CNA
-#Permutation test 
-prop_test <- sc_utils(CD8)
-
-prop_test_R.basVSNR.bas <- permutation_test(
-  prop_test, cluster_identity = "clusters",
-  sample_1 = "Res_bas", sample_2 = "NonRes_bas",
-  sample_identity = "RespTmp"
-)
-
-prop_test_R.postVSNR.post <- permutation_test(
-  prop_test, cluster_identity = "clusters",
-  sample_1 = "Res_post", sample_2 = "NonRes_post",
-  sample_identity = "RespTmp"
-)
-
-p.perm1 <- permutation_plot(prop_test_R.basVSNR.bas, log2FD_threshold = log2(2)) + 
-  ggtitle("Res_bas VS NonRes_bas") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.title = element_text(face = "bold")) +
-  scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
-p.perm2 <- permutation_plot(prop_test_R.postVSNR.post, log2FD_threshold = log2(2))+
-  ggtitle("Res_post VS NonRes_post") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.title = element_text(face = "bold")) +
-  scale_color_manual(values = c("red", "blue"))
-
-p.perm_R_NR <- plot_grid(p.perm1, p.perm2, rel_widths = c(1,1.9), nrow = 1)
-
-#Save Fig. 3E
-tiff("../plots_CD8/sigPerm.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
-p.perm_R_NR
-dev.off()
-
-prop_test_R.basVSHD <- permutation_test(
-  prop_test, cluster_identity = "clusters",
-  sample_1 = "Res_bas", sample_2 = "HD",
-  sample_identity = "RespTmp"
-)
-
-prop_test_NR.basVSHD <- permutation_test(
-  prop_test, cluster_identity = "clusters",
-  sample_1 = "NonRes_bas", sample_2 = "HD",
-  sample_identity = "RespTmp"
-)
-
-prop_test_R.postVSHD <- permutation_test(
-  prop_test, cluster_identity = "clusters",
-  sample_1 = "Res_post", sample_2 = "HD",
-  sample_identity = "RespTmp"
-)
-
-prop_test_NR.postVSHD <- permutation_test(
-  prop_test, cluster_identity = "clusters",
-  sample_1 = "NonRes_post", sample_2 = "HD",
-  sample_identity = "RespTmp"
-)
-
-p.perm3 <- permutation_plot(prop_test_R.basVSHD, log2FD_threshold = log2(2)) + 
-  ggtitle("Res_bas VS HD") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.title = element_text(face = "bold")) +
-  scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
-p.perm4 <- permutation_plot(prop_test_NR.basVSHD, log2FD_threshold = log2(2))+
-  ggtitle("NonRes_bas VS HD") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.title = element_text(face = "bold")) +
-  scale_color_manual(values = c("red", "blue")) +  theme(legend.position="none")
-p.perm5 <- permutation_plot(prop_test_R.postVSHD, log2FD_threshold = log2(2)) + 
-  ggtitle("Res_post VS HD") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.title = element_text(face = "bold")) +
-  scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
-p.perm6 <- permutation_plot(prop_test_NR.postVSHD, log2FD_threshold = log2(2)) + 
-  ggtitle("HD VS NonRes") + 
-  theme(plot.title = element_text(hjust = 0.5)) +
-  theme(plot.title = element_text(face = "bold")) +
-  scale_color_manual(values = c("red", "blue"))
-legend <- get_legend(
-  p.perm6 + theme(legend.box.margin = margin(0, 0, 0, 12),
-                legend.justification = "center") 
-)
-p.perm6 <- p.perm6 + theme(legend.position="none")
-p.perm_HD.Resp <- plot_grid(p.perm3, p.perm4, p.perm5, p.perm6, nrow = 2)
-
-#Save Fig. S6
-tiff("../plots_CD8/permHD_resp.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
-p.perm_HD.Resp + legend
-dev.off()
-
-#######################
-#Code Review form here
-#######################
-
-#Speckle
-props <- getTransformedProps(CD8$clusters, CD8$sample_id,
-                             transform="logit")
-
-tiff("../plots_CD8/MeanVar.tiff", width = 5*150, height = 5*150, res = 300, pointsize = 5)     
-plotCellTypePropsMeanVar(props$Counts)
-dev.off()
-
-condition <- c(rep("HD",2), rep("NonRes",2), rep("Res", 4), rep("NonRes", 2), 
-               rep("Res", 2))
-pair <- c(1,2, rep(c(3,4,5,6,7), each = 2))
-batch <- c(rep(1,2), rep(2,2), rep(3,2), rep(2,2), rep(1,2), rep(2,2))
-design <- model.matrix(~0 + condition + pair  + batch)
-df.anova <- propeller.anova(prop.list=props, design=design, coef = c(1,2,3), 
-                            robust=TRUE, trend=FALSE, sort=TRUE) %>% as.data.frame() 
-df.anova <- df.anova %>% set_colnames(c("HD", "NonRes", "Res", "Fstat", "p.value", "FDR"))
-fdr = 0.05
-s <- factor(
-  ifelse(df.anova$FDR < fdr, "yes", "no"), 
-  levels = c("no", "yes"))
-fdr_pal <- c("blue", "red3")
-names(fdr_pal) <- levels(s)
-F_pal <- c("blue",  "red3")
-F_lims <- range(df.anova$Fstat)
-F_brks <- c(0, F_lims[2])
-Fstat = df.anova$Fstat
-anno_cols <- list(Fstat = colorRamp2(F_brks, F_pal))
-anno_cols$significant <- fdr_pal
-right_anno <- rowAnnotation(
-  Fstat = Fstat,
-  significant = s,
-  "foo" = row_anno_text(
-    gp = gpar(fontsize = 8),
-    scientific(df.anova$FDR, 2)),
-  col = anno_cols,
-  gp = gpar(col = "white"),
-  show_annotation_name = FALSE,
-  simple_anno_size = unit(4, "mm"))
-
-mat <- as.matrix(df.anova[,1:3])
-png("../plots/HeatAnova.png", width = 5*250, height = 5*250, res = 300, pointsize = 5)     
-Heatmap(mat, name = "Transformed proportions",
-        right_annotation = right_anno,
-        cluster_columns = FALSE,
-        cluster_rows = FALSE,
-        heatmap_legend_param = list(title_gp = gpar(
-          fontsize = 10, fontface = "bold", lineheight = 0.8)))
-dev.off()
-
-#as boxplots
-fqs <- props$Proportions
-df.plot <- set_colnames(reshape2::melt(fqs), c("cluster_id", "sample_id", "frequency"))
-df.plot$group_id <- CD8$group_id[match(df.plot$sample_id, CD8$sample_id)]
-df.plot <- df.plot %>% dplyr::mutate(positions = case_when(cluster_id == "StL" ~ "Anova: FDR ***, F 43.271719", TRUE ~ ""))
-tiff("../plots_CD8/boxAnova.tiff", width = 5*400, height = 5*120, res = 300, pointsize = 5)     
-pal_box <- pal_ident[c(10, 14, 35)]
-p.box <- ggplot(df.plot, aes(x = group_id, y = frequency, fill = group_id)) +
-  labs(x = NULL, y = "Proportion") + 
-  geom_boxplot() + scale_fill_manual(values= pal_box) +
-  geom_point(aes_string(x = "group_id"), position = position_jitter(width = 0.2)) +
-  theme_bw() + theme(
-    panel.grid = element_blank(),
-    strip.text = element_text(face = "bold"),
-    strip.background = element_rect(fill = NA, color = NA),
-    axis.text = element_text(color = "black"),
-    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
-    legend.key.height  =  unit(0.8, "lines")) +
-  facet_wrap(~ cluster_id, scales = "free_y", nrow = 1) + theme(legend.position = "none")
-p.box + geom_text(aes(x=1.9,y=0.45,label=positions), size = 1.6)
-dev.off()
-
-#CNA (Res vs NonRes)
-CD8.cna <- subset(CD8, group_id %in% c("Res", "NonRes"))
-CD8.cna <- FindVariableFeatures(CD8.cna,selection.method = "vst", nfeatures = 2000) 
-DefaultAssay(CD8.cna) <- "integrated"
-CD8.cna <- ScaleData(CD8.cna) 
-CD8.cna <- RunPCA(CD8.cna, npcs = 20, verbose = FALSE) 
-CD8.cna <- FindNeighbors(CD8.cna, dims = 1:20, verbose = FALSE) 
-CD8.cna <- FindClusters(CD8.cna, resolution = 0.4, verbose = FALSE)
-CD8.cna <- RunUMAP(CD8.cna, dims = 1:10, verbose = FALSE)
-
-CD8.cna@meta.data$status_val <- as.numeric(factor(CD8.cna@meta.data$group_id, c('Res', 'NonRes')))
-CD8.cna@meta.data$batch <- as.numeric(factor(CD8.cna@meta.data$batch, c('b1', 'b2', 'b3')))
-obj <- association.Seurat(
-  seurat_object = CD8.cna, 
-  test_var = 'status_val', 
-  samplem_key = 'sample_id', 
-  graph_use = 'integrated_snn',
-  batches = "batch")
-options(repr.plot.width=14, repr.plot.height=4)
-p1 <- FeaturePlot(obj, features = c('cna_ncorrs'))[[1]] + 
-  scale_color_gradient2_tableau() + 
-  labs(
-    title = 'Disease association', color = 'Correlation',
-    subtitle = sprintf('Global p=%0.3f', obj@reductions$cna@misc$p)) 
-p2 <- FeaturePlot(obj, features = c('cna_ncorrs_fdr10'))[[1]] + 
-  scale_color_gradient2_tableau() + 
-  labs(title = '', subtitle = 'Filtered for FDR<0.10', color = 'Correlation') 
-p3 <- DimPlot(CD8.cna, group.by = "group_id") + ggtitle("Condition")
-
-tiff("../plots_CD8/cna.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
-p2 + theme_void(base_size = 18)
-dev.off()
-
-DefaultAssay(CD8.cna) <- "RNA"
-sig <- readxl::read_xlsx("../signatures/sig.xlsx", sheet = 1)
-sig_naive <- list(sig$`Naive (from Szabo et al. 2019)`[!is.na(sig$`Naive (from Szabo et al. 2019)`)])
-CD8.cna <- AddModuleScore(CD8.cna, features = sig_naive, name = "sig_naive")
-p.naive.cna <- FeaturePlot(CD8.cna, "sig_naive1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position="none") +
-  ggtitle("Naive (from Szabo et al. 2019)") + theme(plot.title = element_text(size = 15, face = "bold"))
-
-sig_stem <- list(sig$`Stemness (from Pace et al. 2018)`[!is.na(sig$`Stemness (from Pace et al. 2018)`)])
-CD8.cna <- AddModuleScore(CD8.cna, features = sig_stem, name = "sig_stem")
-p.stem.cna <- FeaturePlot(CD8.cna, "sig_stem1", pt.size = 0.000001, order = T, min.cutoff = "q10", max.cutoff = "q90") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(legend.position="none") +
-  ggtitle("Stemness (from Pace et al. 2018)") + theme(plot.title = element_text(size = 15, face = "bold"))
-
-tiff("../plots_CD8/stem_cna.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
-p.stem.cna + theme_void(base_size = 18) + theme(legend.position = "none")
-dev.off()
-
 #3) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
 #Custom Markers Heatmap
 DefaultAssay(CD8) <- "RNA"
@@ -763,36 +545,6 @@ cust_mark <- list(
   SL = c("NKG7", "TBX21",  "CD38","FCRL6", "FCGR3A", "C1orf21", "PRF1", "ENO1",
          "GNLY", "ZEB2", "CX3CR1", "FGFBP2", "KLRD1", "GZMB","ZNF683", "CD226")
 )
-
-#Plot custom markers as scores
-sig_naive <- list(cust_mark$Naive)
-CD8 <- AddModuleScore(CD8, features = sig_naive, name = "sig_naive")
-p.naive <- FeaturePlot(CD8, "sig_naive1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
-  NoAxes() + NoLegend() + ggtitle("Naive") + theme(plot.title = element_text(size = 10, face = "bold"))
-
-sig_stem <- list(cust_mark$StL)
-CD8 <- AddModuleScore(CD8, features = sig_stem, name = "sig_stem")
-p.stl <- FeaturePlot(CD8, "sig_stem1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
-  NoAxes() + NoLegend() + ggtitle("StL") + theme(plot.title = element_text(size = 10, face = "bold"))
-
-sig_actex <- list(cust_mark$ActEx)
-CD8 <- AddModuleScore(CD8, features = sig_actex, name = "sig_actex")
-p.actex <- FeaturePlot(CD8, "sig_actex1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
-  NoAxes() + NoLegend() + ggtitle("ActEx") + theme(plot.title = element_text(size = 10, face = "bold"))
-
-sig_sl <- list(cust_mark$SL)
-CD8 <- AddModuleScore(CD8, features = sig_sl, name = "sig_sl")
-p.sl <- FeaturePlot(CD8, "sig_sl1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
-  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
-  NoAxes() + NoLegend() + ggtitle("SL") + theme(plot.title = element_text(size = 10, face = "bold"))
-
-tiff("../plots_CD8/p.featcust.tiff", width = 5*210, height = 5*210, res = 300, pointsize = 5)     
-p.sig <- plot_grid(p.naive, p.stl, p.actex, p.sl, nrow = 2)
-plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
-dev.off()
 
 #Prepare Heatmap of mean marker-exprs. by cluster
 un_cm <- unlist(cust_mark)
@@ -933,7 +685,7 @@ h.dge <- Heatmap(mat,
                  heatmap_legend_param = lgd_aes,
                  column_names_gp = gpar(fontsize = 14))
 
-
+#Save Fig. 3B
 tiff("../plots_CD8/p.heat_combo.tiff", width = 5*250, height = 5*400, res = 300, pointsize = 5)     
 draw(h.dge,annotation_legend_list = lgd)
 dev.off()
@@ -963,89 +715,206 @@ p.sl <- FeaturePlot(CD8, "sig_sl1", pt.size = 0.00001, order = T,  min.cutoff = 
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
   NoAxes() + NoLegend() + ggtitle("SL") + theme(plot.title = element_text(size = 10, face = "bold"))
 
+#Save Fig. S5
 tiff("../plots_CD8/p.featcust.tiff", width = 5*210, height = 5*210, res = 300, pointsize = 5)     
 p.sig <- plot_grid(p.naive, p.stl, p.actex, p.sl, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
 
-#Drivers of SL and ActEx
-CD8.new <- CD8
-SL<- subset(CD8.new, clusters %in% c("SL", "ActEx"))
-Idents(SL)<- SL$clusters
 
-SL<- SL %>% 
-  FindVariableFeatures(selection.method = "vst", nfeatures = 2000) %>%
-  ScaleData() %>%
-  RunPCA(verbose = FALSE) %>%
-  FindNeighbors(dims = 1:10, verbose = FALSE) %>%
-  FindClusters(resolution = 0.1, verbose = FALSE) %>%
-  RunUMAP(dims = 1:10, verbose = FALSE)
+#3) DA analysis using permutation test, speckle (Anova) and CNA
+#Permutation test 
+prop_test <- sc_utils(CD8)
 
-data <- SL@assays$RNA@scale.data
-
-# let's transpose the matrix and make it to a dataframe
-dim(data)
-data <- t(data) %>% as.data.frame()
-
-## add the cell type/the outcome/y to the dataframe
-data$cell_type<- SL$clusters
-data$cell_barcode<- rownames(data)
-## it is important to turn it to a factor for classification
-data$cell_type<- factor(data$cell_type)
-View(data)
-set.seed(123)
-data_split <- initial_split(data, strata = "cell_type")
-data_train <- training(data_split)
-data_test <- testing(data_split)
-
-# 10 fold cross validation
-data_fold <- vfold_cv(data_train, v = 10)
-
-#Lasso regression
-lasso_spec<-
-  logistic_reg(penalty = tune(), mixture = 1) %>%
-  set_engine("glmnet") %>%
-  set_mode("classification")
-
-lasso_recipe <- 
-  recipe(formula = cell_type ~ ., data = data_train) %>% 
-  step_zv(all_predictors())
-
-# step_normalize(all_predictors())
-## the expression is already scaled, no need to do step_normalize
-
-lasso_workflow <- workflow() %>% 
-  add_recipe(lasso_recipe) %>% 
-  add_model(lasso_spec)
-
-penalty_grid <- grid_regular(penalty(range = c(-5, 5)), levels = 50)
-#penalty_grid
-tune_res <- tune_grid(
-  lasso_workflow,
-  resamples = data_fold, 
-  grid = penalty_grid
+prop_test_R.basVSNR.bas <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "Res_bas", sample_2 = "NonRes_bas",
+  sample_identity = "RespTmp"
 )
 
-best_penalty <- select_best(tune_res, metric = "accuracy")
-best_penalty
+prop_test_R.postVSNR.post <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "Res_post", sample_2 = "NonRes_post",
+  sample_identity = "RespTmp"
+)
 
-lasso_final <- finalize_workflow(lasso_workflow, best_penalty)
-lasso_final_fit <- fit(lasso_final, data = data_train)
+p.perm1 <- permutation_plot(prop_test_R.basVSNR.bas, log2FD_threshold = log2(2)) + 
+  ggtitle("Res_bas VS NonRes_bas") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
+p.perm2 <- permutation_plot(prop_test_R.postVSNR.post, log2FD_threshold = log2(2))+
+  ggtitle("Res_post VS NonRes_post") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue"))
 
-## confusion matrix
-predict(lasso_final_fit, new_data = data_test) %>%
-  bind_cols(data_test %>% select(cell_type)) %>%
-  conf_mat(truth = cell_type, estimate = .pred_class)
+p.perm_R_NR <- plot_grid(p.perm1, p.perm2, rel_widths = c(1,1.9), nrow = 1)
 
-lasso_features<- tidy(lasso_final_fit) %>% 
-  arrange(desc(abs(estimate))) %>%
-  filter(estimate != 0) 
+#Save Fig. 3E
+tiff("../plots_CD8/sigPerm.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
+p.perm_R_NR
+dev.off()
 
-Idents(SL) <- SL$clusters
+prop_test_R.basVSHD <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "Res_bas", sample_2 = "HD",
+  sample_identity = "RespTmp"
+)
 
-tiff("../plots/lasso_genes.tiff", width = 5*150, height = 5*400, res = 300, pointsize = 5)     
-scCustomize::Stacked_VlnPlot(SL, features = lasso_features %>% pull(term) %>% head(n = 20),
-                             colors_use = c("blue", "red")) 
+prop_test_NR.basVSHD <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "NonRes_bas", sample_2 = "HD",
+  sample_identity = "RespTmp"
+)
+
+prop_test_R.postVSHD <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "Res_post", sample_2 = "HD",
+  sample_identity = "RespTmp"
+)
+
+prop_test_NR.postVSHD <- permutation_test(
+  prop_test, cluster_identity = "clusters",
+  sample_1 = "NonRes_post", sample_2 = "HD",
+  sample_identity = "RespTmp"
+)
+
+p.perm3 <- permutation_plot(prop_test_R.basVSHD, log2FD_threshold = log2(2)) + 
+  ggtitle("Res_bas VS HD") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
+p.perm4 <- permutation_plot(prop_test_NR.basVSHD, log2FD_threshold = log2(2))+
+  ggtitle("NonRes_bas VS HD") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue")) +  theme(legend.position="none")
+p.perm5 <- permutation_plot(prop_test_R.postVSHD, log2FD_threshold = log2(2)) + 
+  ggtitle("Res_post VS HD") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
+p.perm6 <- permutation_plot(prop_test_NR.postVSHD, log2FD_threshold = log2(2)) + 
+  ggtitle("HD VS NonRes") + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme(plot.title = element_text(face = "bold")) +
+  scale_color_manual(values = c("red", "blue"))
+legend <- get_legend(
+  p.perm6 + theme(legend.box.margin = margin(0, 0, 0, 12),
+                  legend.justification = "center") 
+)
+p.perm6 <- p.perm6 + theme(legend.position="none")
+p.perm_HD.Resp <- plot_grid(p.perm3, p.perm4, p.perm5, p.perm6, nrow = 2)
+
+#Save Fig. S6
+tiff("../plots_CD8/permHD_resp.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
+p.perm_HD.Resp + legend
+dev.off()
+
+#Speckle
+props <- getTransformedProps(CD8$clusters, CD8$sample_id,
+                             transform="logit")
+
+tiff("../plots_CD8/MeanVar.tiff", width = 5*150, height = 5*150, res = 300, pointsize = 5)     
+plotCellTypePropsMeanVar(props$Counts)
+dev.off()
+
+condition <- c(rep("HD",2), rep("NonRes",2), rep("Res", 4), rep("NonRes", 2), 
+               rep("Res", 2))
+pair <- c(1,2, rep(c(3,4,5,6,7), each = 2))
+batch <- c(rep(1,2), rep(2,2), rep(3,2), rep(2,2), rep(1,2), rep(2,2))
+design <- model.matrix(~0 + condition + pair  + batch)
+df.anova <- propeller.anova(prop.list=props, design=design, coef = c(1,2,3), 
+                            robust=TRUE, trend=FALSE, sort=TRUE) %>% as.data.frame() 
+df.anova <- df.anova %>% set_colnames(c("HD", "NonRes", "Res", "Fstat", "p.value", "FDR"))
+
+#Save fig. 3G
+#boxplots
+fqs <- props$Proportions
+df.plot <- set_colnames(reshape2::melt(fqs), c("cluster_id", "sample_id", "frequency"))
+df.plot$group_id <- CD8$group_id[match(df.plot$sample_id, CD8$sample_id)]
+df.plot <- df.plot %>% dplyr::mutate(positions = case_when(cluster_id == "StL" ~ "Anova: FDR ***, F 43.271719", TRUE ~ ""))
+tiff("../plots_CD8/boxAnova.tiff", width = 5*400, height = 5*120, res = 300, pointsize = 5)     
+pal_box <- pal_ident[c(10, 14, 35)]
+p.box <- ggplot(df.plot, aes(x = group_id, y = frequency, fill = group_id)) +
+  labs(x = NULL, y = "Proportion") + 
+  geom_boxplot() + scale_fill_manual(values= pal_box) +
+  geom_point(aes_string(x = "group_id"), position = position_jitter(width = 0.2)) +
+  theme_bw() + theme(
+    panel.grid = element_blank(),
+    strip.text = element_text(face = "bold"),
+    strip.background = element_rect(fill = NA, color = NA),
+    axis.text = element_text(color = "black"),
+    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
+    legend.key.height  =  unit(0.8, "lines")) +
+  facet_wrap(~ cluster_id, scales = "free_y", nrow = 1) + theme(legend.position = "none")
+p.box + geom_text(aes(x=1.9,y=0.45,label=positions), size = 1.6)
+dev.off()
+
+#CNA (Res vs NonRes)
+CD8.cna <- subset(CD8, group_id %in% c("Res", "NonRes"))
+CD8.cna <- FindVariableFeatures(CD8.cna,selection.method = "vst", nfeatures = 2000) 
+DefaultAssay(CD8.cna) <- "integrated"
+CD8.cna <- ScaleData(CD8.cna) 
+CD8.cna <- RunPCA(CD8.cna, npcs = 20, verbose = FALSE) 
+CD8.cna <- FindNeighbors(CD8.cna, dims = 1:20, verbose = FALSE) 
+CD8.cna <- FindClusters(CD8.cna, resolution = 0.4, verbose = FALSE)
+CD8.cna <- RunUMAP(CD8.cna, dims = 1:10, verbose = FALSE)
+
+CD8.cna@meta.data$status_val <- as.numeric(factor(CD8.cna@meta.data$group_id, c('Res', 'NonRes')))
+CD8.cna@meta.data$batch <- as.numeric(factor(CD8.cna@meta.data$batch, c('b1', 'b2', 'b3')))
+obj <- association.Seurat(
+  seurat_object = CD8.cna, 
+  test_var = 'status_val', 
+  samplem_key = 'sample_id', 
+  graph_use = 'integrated_snn',
+  batches = "batch")
+options(repr.plot.width=14, repr.plot.height=4)
+p1 <- FeaturePlot(obj, features = c('cna_ncorrs'))[[1]] + 
+  scale_color_gradient2_tableau() + 
+  labs(
+    title = 'Disease association', color = 'Correlation',
+    subtitle = sprintf('Global p=%0.3f', obj@reductions$cna@misc$p)) 
+p2 <- FeaturePlot(obj, features = c('cna_ncorrs_fdr10'))[[1]] + 
+  scale_color_gradient2_tableau() + 
+  labs(title = '', subtitle = 'Filtered for FDR<0.10', color = 'Correlation') 
+p3 <- DimPlot(CD8.cna, group.by = "group_id") + ggtitle("Condition")
+
+#Save Fig. 3F
+tiff("../plots_CD8/cna.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
+p2 + theme_void(base_size = 18)
+dev.off()
+
+#plot scores (Res + NonRes)
+sig_naive <- list(comb_mark$Naive)
+CD8.cna <- AddModuleScore(CD8.cna, features = sig_naive, name = "sig_naive")
+p.naive <- FeaturePlot(CD8.cna, "sig_naive1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+  NoAxes() + NoLegend() + ggtitle("Naive") + theme(plot.title = element_text(size = 10, face = "bold"))
+
+sig_stem <- list(comb_mark$StL)
+CD8.cna <- AddModuleScore(CD8.cna, features = sig_stem, name = "sig_stem")
+p.stl <- FeaturePlot(CD8.cna, "sig_stem1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+  NoAxes() + NoLegend() + ggtitle("StL") + theme(plot.title = element_text(size = 10, face = "bold"))
+
+sig_actex <- list(comb_mark$ActEx)
+CD8.cna <- AddModuleScore(CD8.cna, features = sig_actex, name = "sig_actex")
+p.actex <- FeaturePlot(CD8.cna, "sig_actex1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+  NoAxes() + NoLegend() + ggtitle("ActEx") + theme(plot.title = element_text(size = 10, face = "bold"))
+
+sig_sl <- list(comb_mark$SL)
+CD8.cna <- AddModuleScore(CD8.cna, features = sig_sl, name = "sig_sl")
+p.sl <- FeaturePlot(CD8.cna, "sig_sl1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
+  NoAxes() + NoLegend() + ggtitle("SL") + theme(plot.title = element_text(size = 10, face = "bold"))
+
+#Save Fig. S7
+tiff("../plots_CD8/p.featcustCNA.tiff", width = 5*210, height = 5*210, res = 300, pointsize = 5)     
+p.sig <- plot_grid(p.naive, p.stl, p.actex, p.sl, nrow = 2)
+plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
 
 ##################################################################
@@ -1099,6 +968,7 @@ p.traj <- ggplot(df, aes(x = UMAP_1, y = UMAP_2)) +
   theme(legend.position = c(.15, .35),
         legend.background = element_blank()) +  theme_minimal()  
 
+#Save Fig. 4A
 tiff("../plots_CD8/umap_traj.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
 p.traj +theme_void()
 dev.off()
@@ -1228,6 +1098,8 @@ p.nkg7 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oP
 p.patt <- plot_grid(p.gzmk, p.gzmb, p.gnly, p.prf1, p.nkg7, p.fgfbp2) +
   draw_label("Pseudotime", x=0.5, y=  0, vjust=-0.5, angle= 0) +
   draw_label("Log(Expression +1)", x=  0, y=0.5, vjust= 1.5, angle=90)
+
+#Save Fig. 4B
 tiff("../plots_CD8/genes_traj.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 plot_grid(p.patt, legend, rel_widths = c(4,1))
 dev.off()
@@ -1282,7 +1154,7 @@ heat.ae <- Heatmap(mat.ae[1:100,],
                    cluster_rows = T,
                    column_title = "ActEx",
                    heatmap_legend_param = lgd_aes)
-
+#Save Fig. 4
 tiff("../plots_CD8/heatTraj.tiff", width = 5*350, height = 5*400, res = 300, pointsize = 5)     
 heat.sl + heat.ae 
 dev.off()
@@ -1373,10 +1245,11 @@ data_SLvStL <- topTable(fit_SLvStL, coef = 'test', number = 50) %>%
     color = ifelse(t < -5 | t > 5, 'black', 'grey')
   )
 
+#Save Fig. 3I
 # plot t-value
 slVSstl <- ggplot(data = data_SLvStL, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
-  geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = 'grey80') +
+  geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = "grey80") +
   geom_text(
     aes(
       x = gene_set,
@@ -1389,16 +1262,19 @@ slVSstl <- ggplot(data = data_SLvStL, aes(x = gene_set, y = t, fill = t)) +
   ) +
   scale_x_discrete(name = '', labels = NULL) +
   scale_y_continuous(name = 't-value', limits = c(-55,55)) +
-  scale_fill_distiller(palette = 'Spectral', limits = c(-max(data_SLvStL$t), max(data_SLvStL$t))) +
   scale_color_manual(values = c('black' = 'black', 'grey' = 'grey')) +
   coord_flip() +
   theme_bw() +
+  guides(color = "none") +
   theme(
     panel.grid = element_blank(),
     axis.ticks.y =  element_blank(),
-    legend.position = 'none'
-  ) + ggtitle("Senescent-like VS Stem-like") +
-  theme(plot.title = element_text(hjust = 0.5)) 
+    legend.title = element_blank(),
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom"
+  ) + ggtitle("Senescent-like VS Stem-like") + 
+  scale_fill_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), 
+                               breaks=c(-30, 25), label = c("StL", "SL"))
 
 ##Senescence-like VS Activated Exhausted
 # get indices of cells which are either SL or StL
@@ -1462,13 +1338,17 @@ SlVSActEx <- ggplot(data = data_SLvActEx, aes(x = gene_set, y = t, fill = t)) +
   scale_fill_distiller(palette = 'Spectral', limits = c(-max(data_SLvActEx$t), max(data_SLvActEx$t))) +
   scale_color_manual(values = c('black' = 'black', 'grey' = 'grey')) +
   coord_flip() +
+  guides(color = "none") +
   theme_bw() +
   theme(
     panel.grid = element_blank(),
     axis.ticks.y =  element_blank(),
-    legend.position = 'none'
-  ) + ggtitle("Senescent-like VS Activated-exhausted") +
-  theme(plot.title = element_text(hjust = 0.5)) 
+    legend.title = element_blank(),
+    legend.position = 'bottom',
+    plot.title = element_text(hjust = 0.5)
+  ) + ggtitle("Senescent-like VS Activated-Exhausted") +
+  scale_fill_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), 
+                               breaks=c(-32, 34), label = c("ActEx", "SL"))
 
 ##Activated-Exhausted VS Stem-like
 # get indices of cells which are either SL or StL
@@ -1533,17 +1413,24 @@ ActExvStL <- ggplot(data = data_ActExvStL, aes(x = gene_set, y = t, fill = t)) +
   scale_color_manual(values = c('black' = 'black', 'grey' = 'grey')) +
   coord_flip() +
   theme_bw() +
+  guides(color = "none")+
   theme(
     panel.grid = element_blank(),
     axis.ticks.y =  element_blank(),
-    legend.position = 'none'
+    legend.title = element_blank(),
+    legend.position = 'bottom'
   ) + ggtitle("Activated-exhausted VS Stem-like") +
-  theme(plot.title = element_text(hjust = 0.5)) 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), 
+                       breaks=c(-32, 34), label = c("StL", "ActEx"))
 
+
+#Save Fig. 3I
 tiff("../plots_CD8/GSVA_plots.tiff", width = 5*830, height = 5*300, res = 300, pointsize = 5)     
 plot_grid(slVSstl, SlVSActEx, nrow = 1)
 dev.off()
 
+#Save Fig. S9
 tiff("../plots_CD8/GSVA_plots2.tiff", width = 5*415, height = 5*300, res = 300, pointsize = 5)     
 ActExvStL
 dev.off()
@@ -1567,35 +1454,15 @@ out <- SCpubr::do_PathwayActivityPlot(sample = CD8,
                                       split.by = "group_id")
 p.patHeat <- out$heatmaps$average_scores
 
+#Save Fig. 3H
 tiff("../plots_CD8/heat_hyp.tiff", width = 5*400, height = 5*500, res = 300, pointsize = 5)     
 p.patHeat
-dev.off()
-
-#Since hypoxia is up in GSVA and pathway analysis LDHA might be increased in SL
-CD8@active.ident <- CD8$clusters
-tiff("../plots_CD8/DP_LDHA.tiff", width = 5*200, height = 5*180, res = 300, pointsize = 5)     
-DotPlot_scCustom(CD8, features = "LDHA",colors_use = pal_exp, x_lab_rotate = TRUE) + 
-  theme(axis.text.x = element_text(size = 8))
 dev.off()
 
 ############################
 ##E) TCR repertoire analysis
 ############################
-
-#1) Export for scirpy
-CD8.clono <- CD8
-CD8.clono <- subset(CD8.clono, subset = group_id == "HD", invert = TRUE) #we do not have clonotype data for the HDs
-CD8.clono$batch <- NULL
-md <- CD8.clono@meta.data
-md$clusters <- as.vector(md$clusters)
-CD8.clono@meta.data <- md
-SaveH5Seurat(CD8.clono, filename = "CD8_clonoscv.h5Seurat")
-Convert("CD8_clonoscv.h5Seurat", dest = "h5ad") 
-
-SaveH5Seurat(pbmc3k.final, filename = "pbmc3k.h5Seurat")
-Convert("pbmc3k.h5Seurat", dest = "h5ad")
-
-#2) scRepertoire analysis
+#1) scRepertoire analysis
 
 #Clonotype analysis
 #Delete HD (we have VDJ only for responders and nonresponders)
@@ -1603,13 +1470,16 @@ CD8.clono <- subset(CD8, group_id %in% c("Res", "NonRes"))
 md <- CD8.clono@meta.data
 
 #Define hyper and large as expanded, all the others as not expanded
-md <- md %>% mutate(`Clonal expansion` = case_when(cloneType %in% c("Hyperexpanded (100 < X <= 500)","Large (20 < X <= 100)") ~ 'Expanded',
-                                                   TRUE ~ "Not Expanded"))
+md$Clonal_expansion <- ifelse(md$cloneType == "Single (0 < X <= 1)", "Not Expanded", md$cloneType)
+
 CD8.clono@meta.data <- md
-CD8.clono$`Clonal expansion` %>% as.factor()
+CD8.clono$Clonal_expansion <- CD8.clono$Clonal_expansion %>% as.factor()
+levels(CD8.clono$Clonal_expansion) <- levels(CD8.clono$Clonal_expansion)[c(1,2,3,5,4)]
+
+#Save Fig. 6A
 tiff("../plots_CD8/clonalExp.tiff", width = 5*300, height = 5*250, res = 300, pointsize = 5)     
-DimPlot_scCustom(CD8.clono, group.by = "Clonal expansion", colors_use =  c("lightgrey", "darkred"), order = c("Expanded", "Not Expanded"),
-                 pt.size = 0.00001) + ggtitle("") + theme_void()
+DimPlot_scCustom(CD8.clono, group.by = "Clonal_expansion", pt.size = 0.00001) + ggtitle("") +
+  scale_colour_brewer(palette = "Reds", direction = -1)
 dev.off()
 
 tiff("../plots_CD8/clonoContour.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
