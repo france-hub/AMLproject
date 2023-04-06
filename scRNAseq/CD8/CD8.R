@@ -1477,11 +1477,12 @@ CD8.clono$Clonal_expansion <- CD8.clono$Clonal_expansion %>% as.factor()
 levels(CD8.clono$Clonal_expansion) <- levels(CD8.clono$Clonal_expansion)[c(1,2,3,5,4)]
 
 #Save Fig. 6A
-tiff("../plots_CD8/clonalExp.tiff", width = 5*300, height = 5*250, res = 300, pointsize = 5)     
-DimPlot_scCustom(CD8.clono, group.by = "Clonal_expansion", pt.size = 0.00001) + ggtitle("") +
-  scale_colour_brewer(palette = "Reds", direction = -1)
+tiff("../plots_CD8/clonalExp2.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
+DimPlot_scCustom(CD8.clono, group.by = "Clonal_expansion", pt.size = 0.01, order = F) + ggtitle("") +
+  scale_colour_brewer(palette = "Reds", direction = -1) & NoAxes() 
 dev.off()
 
+#Save Fig. 6B
 tiff("../plots_CD8/clonoContour.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
 p <- clonalOverlay(CD8.clono, reduction = "umap", 
                    freq.cutpoint = 20, bins = 25, facet = "group_id") + 
@@ -1489,31 +1490,15 @@ p <- clonalOverlay(CD8.clono, reduction = "umap",
 p + theme_void(base_size = 20) + scale_color_manual(values=pal_ident)
 dev.off()
 
-CD8.clono_list <- SplitObject(CD8.clono, split.by = "RespTmp")
-occrep <- lapply(CD8.clono_list, function(x) occupiedscRepertoire(x, x.axis = "clusters", label = FALSE))
-occrep_res.bas <- occrep[[1]] + ggtitle ("Res_bas") + theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
-                                                            legend.title=element_blank(),
-                                                            axis.text.x = element_text(size = 20),
-                                                            axis.text.y = element_text(size = 20),
-                                                            legend.text=element_text(size=15)) 
-occrep_res.post <- occrep[[2]] + ggtitle ("Res_post")+ theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
-                                                             legend.title=element_blank(),
-                                                             axis.text.x = element_text(size = 15),
-                                                             axis.text.y = element_text(size = 15),
-                                                             legend.text=element_text(size=15))
-occrep_Nres.bas <- occrep[[3]] + ggtitle ("NonRes_bas") + theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
-                                                                legend.title=element_blank(),
-                                                                axis.text.x = element_text(size = 15),
-                                                                axis.text.y = element_text(size = 15),
-                                                                legend.text=element_text(size=15)) 
-occrep_Nres.post <- occrep[[4]] + ggtitle ("NonRes_post")+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 20),
-                                                                  legend.title=element_blank(),
-                                                                  axis.text.x = element_text(size = 20),
-                                                                  axis.text.y = element_text(size = 20),
-                                                                  legend.text=element_text(size=15))
+md$cloneType <- ifelse(md$cloneType == "Single (0 < X <= 1)", "Not Expanded", md$cloneType) %>% as.factor() 
+lev <- levels(md$cloneType)
+lev
+md$cloneType <- factor(md$cloneType, lev[c(1:3,5,4)])
+CD8.clono@meta.data <- md
 
-tiff("../plots_CD8/occrep.tiff", width = 5*850, height = 5*400, res = 300, pointsize = 5)     
-cowplot::plot_grid(occrep_res.bas, occrep_res.post, occrep_Nres.bas, occrep_Nres.post, nrow =2) 
+#Save Fig. 6C
+tiff("../plots_CD8/occrep.tiff", width = 5*430, height = 5*80, res = 300, pointsize = 5)     
+occupiedscRepertoire(CD8.clono, x.axis = "clusters", facet.by = 'RespTmp',label = FALSE)
 dev.off()
 
 #################
@@ -1529,45 +1514,46 @@ p.umap2 <- DimPlot(CD8, label = T, split.by = "group_id")
 CD8 <- RenameIdents(CD8, 
                     "0" = "Naive",
                     "1" = "StL",
-                    "2" = "SL1",
+                    "2" = "Int",
                     "3" = "Naive",
-                    "4" = "SL2",
+                    "4" = "SL",
                     "5" = "ActEx",
                     "6" = "Naive",
                     "7" = "StL",
-                    "8" = "SL1",
+                    "8" = "Int",
                     "9" = "ActEx",
-                    "10" = "SL1",
-                    "11" = "SL2",
+                    "10" = "Int",
+                    "11" = "SL",
                     "12" = "Naive",
-                    "13" = "SL2",
+                    "13" = "SL",
                     "14" = "StL",
-                    "15" = "SL2",
+                    "15" = "SL",
                     "16" = "StL",
                     "17" = "StL",
-                    "18" = "SL2",
+                    "18" = "SL",
                     "19" = "ActEx",
                     "20" = "ActEx")
 
 CD8$clusters2 <- CD8@active.ident
-CD8$clusters2 <- factor(CD8$clusters2, levels = c("Naive", "StL",   "SL1", "ActEx", "SL2"))
+CD8$clusters2 <- factor(CD8$clusters2, levels = c("Naive", "StL",   "Int", "ActEx", "SL"))
 CD8@active.ident <- CD8$clusters2
+
+#Save Fig. S13
 tiff("../plots_CD8/umap_sen.tiff", width = 5*300, height = 5*300, res = 300, pointsize = 5)     
 p <- DimPlot_scCustom(CD8, label = TRUE, label.size = 8, colors_use = pal_ident, pt.size = 0.00001) + NoAxes()+
   theme(legend.position="none") 
 p
-#df <- data.frame(x1 = -5.4, x2 = -0.4, y1 = -4.3, y2 = -0.2)
-#p +  geom_segment(aes(x = x1, y = y1, xend = x2, yend = y2), face = "bold", linetype = 2, data = df)
 dev.off()
 
 cluster_stats <- Cluster_Stats_All_Samples(CD8, group_by_var = "group_id") %>%  
   mutate(freq_groupID = log10(Res/NonRes)) %>%  
   dplyr::filter(!str_detect("Total", Cluster))
 
-cluster_stats$Cluster <-  factor(cluster_stats$Cluster, levels = c("Naive", "StL",  "SL1","ActEx", "SL2"))
+cluster_stats$Cluster <-  factor(cluster_stats$Cluster, levels = c("Naive", "StL",  "Int","ActEx", "SL"))
 
 colScale <- scale_colour_manual(name = "Cluster",values = pal_ident)
 
+#Save Fig. S11C
 tiff("../plots_CD8/dot_group.tiff", width = 5*80, height = 5*60, res = 150, pointsize = 5)     
 cluster_stats %>% ggplot(aes(x=Cluster, y = freq_groupID)) + 
   geom_point(aes(size = abs(freq_groupID), colour = Cluster)) + theme_classic() + ylim(-1.5, 1.5) + geom_hline(yintercept=0,linetype=2) + ylab("log10(Res/NonRes freq)") +
@@ -1610,87 +1596,15 @@ p.exp <- ggplot(exp, aes(x=majorCluster, y=value)) +
   theme(axis.title.x = element_blank()) + ggtitle("Kruskal-Wallis chi-squared, \n p = 4.194e-05") +
   theme(plot.title = element_text(size = 5, face = "bold")) +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
+#Save Fig. 6H
 tiff("../plots_CD8/startrac.tiff", width = 5*83, height = 5*50, res = 150, pointsize = 5)     
 plot_grid(p.tran, p.exp, ncol = 2) 
 dev.off()
 
 DefaultAssay(CD8) <- "RNA"
-
-#3) DGE including clusters SL1 and SL2
-mark2 <- FindAllMarkers(CD8)
-mark2 %>% dplyr::filter(!str_detect(rownames(mark2), "^RP[SL]")) %>% 
-  group_by(cluster) %>%
-  top_n(n = 10, wt = avg_log2FC) -> top10
-top10 <- top10[!duplicated(top10$gene),]
-df <- data.frame(top10$cluster, top10$gene)
-df  <-  reshape(transform(df, indx = ave(as.character(top10.cluster), top10.cluster, FUN = seq)), 
-                idvar = "indx", timevar = "top10.cluster", direction = "wide") 
-colnames(df) <- gsub("top10.gene.", "", colnames(df))
-all_markers <- df %>%
-  select(-indx) 
-colnames(all_markers) <- as.character(colnames(all_markers))
-all_m <- lapply(all_markers, function(x) x[!is.na(x)])
-
-#Prepare Heatmap of mean marker-exprs. by cluster
-un_cm <- unlist(all_m) 
-num_mark <- vapply(all_m, length, numeric(1))
-rep_clus <- rep.int(names(all_m), num_mark)
-labs <- sprintf("%s(%s)", un_cm, rep_clus)
-
-# split cells by cluster
-cel_by_clus <- split(colnames(CD8), CD8@active.ident)
-
-# compute cluster-marker means
-ct <- GetAssayData(CD8, slot = "counts")
-libsizes <- colSums(ct)
-sf <- libsizes/mean(libsizes)
-log.ct <- log2(t(t(ct)/sf) + 1)
-
-m_by_clus <- lapply(all_m, function(un_cm)
-  vapply(cel_by_clus, function(i)
-    Matrix::rowMeans(log.ct[un_cm, i, drop = FALSE]), 
-    numeric(length(un_cm))))
-
-# prep. for plotting 
-mat <- do.call("rbind", m_by_clus)
-
-#Z-score
-mat <- t(scale(t(mat)))
-
-mat <- mat %>% as.data.frame() %>%  select(c("Naive", "StL", "ActEx", "SL1", "SL2")) %>% 
-  as.matrix()
-
-cols <- pal_ident[seq_along(levels(CD8$clusters2))]
-cols <- setNames(cols, levels(CD8$clusters2))
-row_anno <- rowAnnotation(
-  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SL1", "SL2")),
-  col = list(cluster_id = cols, gp = gpar(col = "white")), 
-  show_legend = c(FALSE, TRUE)) 
-
-idx <- which(rownames(mat) %in% c("KLRB1", "ZNF683", "GNLY", "FGFBP2"))
-colLab <- rep("black", nrow(mat))
-colLab[idx] <- "red"
-
-lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
-                title = "Expression")
-h.heat.sl1sl2 <- Heatmap(t(mat),
-                         cluster_rows = FALSE,
-                         cluster_columns = TRUE,
-                         row_names_side = "left",
-                         left_annotation = row_anno,
-                         row_names_gp = grid::gpar(fontsize = 10),
-                         heatmap_legend_param = lgd_aes,
-                         column_names_gp = gpar(col = colLab,fontsize = 7))
-
-tiff("../plots_CD8/heatSL.tiff", width = 5*330, height = 5*150, res = 300, pointsize = 5)     
-p <- draw(h.heat.sl1sl2, heatmap_legend_side = "bottom", align_heatmap_legend = "heatmap_center", 
-          show_annotation_legend = FALSE)
-p
-dev.off()
-
-tiff("../plots_CD8/vlnSL.tiff", width = 5*250, height = 5*100, res = 300, pointsize = 5)     
-Stacked_VlnPlot(CD8, features = c("CX3CR1", "ZNF683"), colors_use = pal_ident)
-dev.off()
+#################################
+##Review from here
+#################################
 
 #Trm markers
 p <-FeaturePlot(CD8, features = c("CXCR6", "ITGAE"), combine=F, pt.size=0.00001, order=T) 
