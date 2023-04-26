@@ -1451,7 +1451,7 @@ tiff("../plots_CD8/GSVA_plots.tiff", width = 5*830, height = 5*300, res = 300, p
 plot_grid(slVSstl, SlVSActEx, nrow = 1)
 dev.off()
 
-#Save Fig. S9
+#Save Fig. S10
 tiff("../plots_CD8/GSVA_plots2.tiff", width = 5*415, height = 5*300, res = 300, pointsize = 5)     
 ActExvStL
 dev.off()
@@ -1798,6 +1798,7 @@ df <- read.csv("l_time.csv")
 df <- df %>% arrange(factor(clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")))
 df$clusters2 <- factor(df$clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")) 
 
+#Save Fig. S12B
 tiff("../plots_CD8/jitt.tiff", width = 5*100, height = 5*60, res = 150, pointsize = 5)     
 ggplot(df, 
        aes(x = latent_time, y = clusters2, colour = clusters2)) + geom_jitter(size = 0.0000001) +
