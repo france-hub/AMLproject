@@ -308,16 +308,13 @@ tiff("./plots/umap_AML.tiff", width = 5*700, height = 5*700, res = 300, pointsiz
 plot_grid(p.listAML[[1]],p.listAML[[2]], p.listAML[[3]],p.listAML[[4]], nrow = 2)
 dev.off()
 
-#Save Supplementary Fig. 1A
+#Save Supplementary Fig. 1C
 tiff("./plots/umap_HD.tiff", width = 5*350, height = 5*350, res = 300, pointsize = 5)     
 p.listHD 
 dev.off()
 
 p <- plotAbundances(sce, k = "cluster_annotation")
 df <- p$data
-df <- df %>% mutate(group_id = case_when(str_detect(sample_id, "CR") ~ "Res",
-                                          str_detect(sample_id, "HC") ~ "HD",
-                                          str_detect(sample_id, "NR") ~ "NonRes"))
 
 barplot <- ggplot(df, aes(x = condition, y = Freq, fill = cluster_id)) +
   geom_col(position = "fill") +
@@ -334,79 +331,10 @@ barplot <- ggplot(df, aes(x = condition, y = Freq, fill = cluster_id)) +
     legend.text = element_text(size = 12),
     legend.key.size = unit(0.4, "cm")) 
 getwd()
+
 #Save Fig. 1D
 tiff("./barplot.tiff", width = 5*200, height = 5*200, res = 300, pointsize = 5)     
 barplot
 dev.off()
-#Ratio StL/SL (work in progress)
-sce$cluster_annotation <- cluster_ids(sce, "cluster_annotation")
-p <- plotCounts(sce, group_by = "sample_id", color_by = "cluster_annotation")
-df.2 <- p$data
-df.2 <- df.2 %>% dplyr::filter(cluster_annotation %in% c("StL", "SL"))
-
-df.2 <- df.2 %>% spread(cluster_annotation, value) %>% mutate(ratio = StL/SL)
-df.2 <- df.2 %>% mutate(group_id = case_when(str_detect(sample_id, "CR_BM_base") ~ "Res_bas",
-                                             str_detect(sample_id, "HC") ~ "HD",
-                                             str_detect(sample_id, "NR_BM_base") ~ "NonRes_bas",
-                                             str_detect(sample_id, "CR_BM_post") ~ "Res_post",
-                                             TRUE ~ "NonRes_post"))
-df.2_AML <- df.2 %>% dplyr::filter(group_id %in% c("Res_bas", "NonRes_post"))
-ggqqplot(df.2_AML$ratio)
-shapiro.test(df.2_AML$ratio)
-ggdensity(df.2_AML$ratio)
-df.2$ratio
-
-Comparisons <- combn(levels(factor(df.2$group_id)), 2, simplify = F)
-sig_comp <- list(c("HD", "NonRes_bas"), c("HD", "NonRes_post"))
-p.ttest1 <- ggplot(df.2, aes_string(x= "group_id", y = "StL/SL", fill = "group_id"))+
-  labs(x = NULL, y = "ratio StL/SL") +
-  geom_boxplot(outlier.color = NA) + scale_fill_manual(values = pal_ident[c(2,6,19, 14, 35)]) +
-  geom_point(aes_string(x = "group_id"), position = position_jitter(width = 0.2)) +
-  theme_bw() + theme(
-    panel.grid = element_blank(),
-    strip.text = element_text(face = "bold"),
-    strip.background = element_rect(fill = NA, color = NA),
-    axis.text = element_text(color = "black"),
-    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 12),
-    axis.text.y = element_text(size = 12)) +
-  stat_compare_means(label.x = 2.2, label.y = 12.5, method = "kruskal.test") +
-  stat_compare_means(aes(label = ..p.signif..),comparisons = sig_comp, method = "wilcox.test", hide.ns = TRUE)
-  
-
-tiff("./plots/boxplot1.tiff", width = 5*300, height = 5*250, res = 300, pointsize = 5)     
-p.ttest1
-dev.off()
-
-df.2 <- p$data
-df.2 <- df.2 %>% dplyr::filter(cluster_annotation %in% c("StL", "SL"))
-df.2 <- df.2 %>% spread(cluster_annotation, value) %>% mutate(ratio = StL/SL)
-df.2 <- df.2 %>% mutate(group_id = case_when(str_detect(sample_id, "CR_BM_base") ~ "AML_bas",
-                                             str_detect(sample_id, "HC") ~ "HD",
-                                             str_detect(sample_id, "NR_BM_base") ~ "AML_bas",
-                                             str_detect(sample_id, "CR_BM_post") ~ "AML_post",
-                                             TRUE ~ "AML_post"))
-df.2_AMLvHD <- df.2 %>% dplyr::filter(group_id %in% c("AML_bas", "HD"))
-ggqqplot(df.2_AML$ratio)
-shapiro.test(df.2_AML$ratio)
-ggdensity(df.2_AML$ratio)
-
-p.ttest2 <- ggplot(df.2_AMLvHD, aes_string(x= "group_id", y = "ratio", fill = "group_id"))+
-  labs(x = NULL, y = "ratio StL/SL") +
-  geom_boxplot() + scale_fill_manual(values = pal_ident[c(14,11)]) +
-  geom_point(aes_string(x = "group_id"), position = position_jitter(width = 0.2)) +
-  theme_bw() + theme(
-    panel.grid = element_blank(),
-    strip.text = element_text(face = "bold"),
-    strip.background = element_rect(fill = NA, color = NA),
-    axis.text = element_text(color = "black"),
-    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 15)) +
-  stat_compare_means(label = "p.signif",label.x = 1.5, hide.ns = TRUE, label.y = 9.5, method = "wilcox.test")
-
-tiff("./plots/boxplot2.tiff", width = 5*200, height = 5*150, res = 300, pointsize = 5)     
-p.ttest2 
-dev.off()
 
 saveRDS(sce, "sce.rds") #FROM HERE
-
-sce <- readRDS("sce.rds")
-levels(sce$sample_id %>% factor())
