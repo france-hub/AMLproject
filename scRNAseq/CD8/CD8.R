@@ -25,11 +25,15 @@
 
 ##E) TCR repertoire analysis
 #1) scRepertoire analysis
+#2) Putative tumor reactive
 
 ##F) Reclustering with increased resolution and further analyses
 #1) Reclustering and clusters frequencies across conditions
 #2) STARTRAC method
 #3) DGE Int vs. SL
+#4) Gating model for SLEC markers 
+#5) Trm markers
+#6) Gating model for Int markers (from spectral flow data)
 
 ##G) Velocity inference
 #1) Load in loom files and prepare to analyze in Python via scVelo
@@ -1504,6 +1508,50 @@ tiff("../plots_CD8/occrep.tiff", width = 5*430, height = 5*80, res = 300, points
 occupiedscRepertoire(CD8.clono, x.axis = "clusters", facet.by = 'RespTmp',label = FALSE)
 dev.off()
 
+#2) Putative tumor-reactive
+#7) Ag specific
+#Look for antigen-specific
+sig <- readxl::read_xlsx("../signatures/neoTCR.xlsx", sheet = 1)
+DefaultAssay(CD8.clono) <- "RNA"
+sig_agsp<- list(sig$Gene[!is.na(sig$Gene)])
+CD8.clono <- AddModuleScore(CD8.clono, features = sig_agsp, name = "sig_agsp")
+md <- CD8.clono@meta.data 
+library(extremevalues)
+library("ggpubr")
+ggdensity(md$sig_agsp1)
+ggqqplot(md$sig_agsp1)
+
+qnts <- quantile(md$sig_agsp1, probs = c(.10, .90))
+vls <- md$sig_agsp1[md$sig_agsp1 >= qnts[[1]] & md$sig_agsp1 <= qnts[[2]]]
+thsld <- getOutliersI(vls, distribution = "normal")$sigma
+
+md <- CD8.clono@meta.data
+md <- md %>% mutate(Ag_specific = (case_when(md$sig_agsp1 > thsld ~ "AgSp",
+                                             TRUE ~ "No_AgSp"))) %>%
+  mutate(Expanded = case_when(cloneType == "Not Expanded (0 < X <= 1)" ~ "Not_Exp",
+                              TRUE ~ "Exp"))
+CD8.clono@meta.data <- md
+df1 <- as.data.frame.matrix(table(CD8.clono$clusters, CD8.clono$Ag_specific))
+df2 <- as.data.frame.matrix(table(CD8.clono$clusters, CD8.clono$Expanded))
+df_all <- merge(df1, df2, by = 0)%>% mutate(Ag_specific = AgSp/(AgSp + No_AgSp)) %>%
+  mutate(Freq.Exp = Exp/(Exp + Not_Exp)) %>% mutate(`log10 cell number` = log10(No_AgSp + AgSp))
+df_all$clusters <- factor(df_all$Row.names, levels = c("Naive","StL","SL","ActEx"))
+
+#Save Fig. 6D
+tiff("../plots_CD8/AgSpec.tiff", width = 5*310, height = 5*250, res = 300, pointsize = 5)    
+p.agSpec <- ggplot(df_all, aes(x =Ag_specific, y = Freq.Exp, color = clusters, size = `log10 cell number`)) + geom_point() + theme_bw() +
+  scale_size(range = c(2,4)) + ylab("Expansion index") + xlab("NeoTCR8 index") +
+  scale_size_continuous(range  = c(0.1, 10),
+                        limits = c(3, 4.0),
+                        breaks = c(3,4.0)) +
+  scale_color_manual("clusters", values = pal_ident) +
+  guides(size = FALSE, colour = guide_legend(override.aes = list(size=10)))  +
+  theme(legend.text = element_text(size = 14),
+        legend.title = element_text(size = 14),
+        axis.title = element_text(size = 14))
+p.agSpec
+dev.off()   
+
 #################
 ##F) Reclustering
 #################
@@ -1606,20 +1654,6 @@ dev.off()
 
 DefaultAssay(CD8) <- "RNA"
 
-#Fig. S13A
-#SLEC
-markers <- c("TBX21", "KLRG1", "ID2", "ZEB2", "PRDM1", "CX3CR1")
-neg <- c("IL7R")
-
-SLEC <- gating_model(level=1, name="SLEC", signature=markers)
-SLEC <- gating_model(model=SLEC, level=1, name = "IL7R", signature = "IL7R", negative=TRUE)
-SLEC <- scGate(CD8, model = SLEC)
-
-tiff("../plots_CD8/SLEC.tiff", width = 5*150, height = 5*150, res = 150, pointsize = 5)     
-DimPlot_scCustom(SLEC, group.by = "is.pure", colors_use = c("darkred", "lightgrey"), pt.size=0.00001, figure_plot = TRUE) +
-  ggtitle("") & NoLegend()
-dev.off()
-
 #DGE SL vs. Int
 mark.SL_Int <- FindMarkers(CD8, ident.1 = "Int", ident.2 = "SL")
 
@@ -1647,6 +1681,23 @@ EnhancedVolcano(mark.SL_Int,
   geom_label(aes(x = -3, y = 0, label = "SL"), fill ="#0072B2") 
 dev.off()
 
+
+#4) Gating model for SLEC markers 
+markers <- c("TBX21", "KLRG1", "ID2", "ZEB2", "PRDM1", "CX3CR1")
+neg <- c("IL7R")
+
+
+SLEC <- gating_model(level=1, name="SLEC", signature=markers)
+SLEC <- gating_model(model=SLEC, level=1, name = "IL7R", signature = "IL7R", negative=TRUE)
+SLEC <- scGate(CD8, model = SLEC)
+
+#Fig. S13A
+tiff("../plots_CD8/SLEC.tiff", width = 5*150, height = 5*150, res = 150, pointsize = 5)     
+DimPlot_scCustom(SLEC, group.by = "is.pure", colors_use = c("darkred", "lightgrey"), pt.size=0.00001, figure_plot = TRUE) +
+  ggtitle("") & NoLegend()
+dev.off()
+
+#5) Trm markers
 #Fig S13 D and E
 p <-FeaturePlot(CD8, features = c("CXCR6", "ITGAE"), combine=F, pt.size=0.00001, order=T) 
 
@@ -1665,6 +1716,7 @@ tiff("../plots_CD8/p.Trm.vln.tiff", width = 5*300, height = 5*500, res = 300, po
 Stacked_VlnPlot(CD8, features = c("CD69", "CXCR6", "ITGAE"), colors_use = pal_ident)
 dev.off()
 
+#6) Gating model for Int markers (from spectral flow data)
 #Fig. S14B
 #Int markers from flow
 int_mark <- c("CD226", "CD28", "TBX21", "GZMB", "CX3CR1",
@@ -1881,6 +1933,7 @@ h.reg <- Heatmap(t(mat),
                  heatmap_legend_param = lgd_aes,
                  column_names_gp = gpar(col = colLab, fontsize = 12))
 
+#Save Fig. 6I
 tiff("heat.tiff", width = 5*850, height = 5*200, res = 300, pointsize = 5)    
 h.reg
 dev.off()
