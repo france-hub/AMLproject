@@ -1617,6 +1617,7 @@ DimPlot_scCustom(SLEC, group.by = "is.pure", colors_use = c("darkred", "lightgre
   ggtitle("") & NoLegend()
 dev.off()
 
+#DGE SL vs. Int
 mark.SL_Int <- FindMarkers(CD8, ident.1 = "Int", ident.2 = "SL")
 
 tiff("../plots_CD8/volc.tiff", width = 5*250, height = 5*150, res = 150, pointsize = 5)     
