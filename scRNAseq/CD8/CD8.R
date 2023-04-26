@@ -1553,7 +1553,7 @@ cluster_stats$Cluster <-  factor(cluster_stats$Cluster, levels = c("Naive", "StL
 
 colScale <- scale_colour_manual(name = "Cluster",values = pal_ident)
 
-#Save Fig. S11C
+#Save Fig. S13B 
 tiff("../plots_CD8/dot_group.tiff", width = 5*80, height = 5*60, res = 150, pointsize = 5)     
 cluster_stats %>% ggplot(aes(x=Cluster, y = freq_groupID)) + 
   geom_point(aes(size = abs(freq_groupID), colour = Cluster)) + theme_classic() + ylim(-1.5, 1.5) + geom_hline(yintercept=0,linetype=2) + ylab("log10(Res/NonRes freq)") +
@@ -1602,11 +1602,48 @@ plot_grid(p.tran, p.exp, ncol = 2)
 dev.off()
 
 DefaultAssay(CD8) <- "RNA"
-#################################
-##Review from here
-#################################
 
-#Trm markers
+#Fig. S13A
+#SLEC
+markers <- c("TBX21", "KLRG1", "ID2", "ZEB2", "PRDM1", "CX3CR1")
+neg <- c("IL7R")
+
+SLEC <- gating_model(level=1, name="SLEC", signature=markers)
+SLEC <- gating_model(model=SLEC, level=1, name = "IL7R", signature = "IL7R", negative=TRUE)
+SLEC <- scGate(CD8, model = SLEC)
+
+tiff("../plots_CD8/SLEC.tiff", width = 5*150, height = 5*150, res = 150, pointsize = 5)     
+DimPlot_scCustom(SLEC, group.by = "is.pure", colors_use = c("darkred", "lightgrey"), pt.size=0.00001, figure_plot = TRUE) +
+  ggtitle("") & NoLegend()
+dev.off()
+
+mark.SL_Int <- FindMarkers(CD8, ident.1 = "Int", ident.2 = "SL")
+
+tiff("../plots_CD8/volc.tiff", width = 5*250, height = 5*150, res = 150, pointsize = 5)     
+EnhancedVolcano(mark.SL_Int, 
+                lab = rownames(mark.SL_Int),
+                selectLab = c("KLRC3", "TIGIT", "CD74", "CMC1",
+                                     "FGFBP2", "KLRB1", "TNFAIP3",
+                                     "ZNF683", "GNLY"),  
+                labFace = "bold",
+                boxedLabels = TRUE,
+                col=c('black', 'black', 'black', 'red3'),
+                x ="avg_log2FC", 
+                y ="p_val_adj",  
+                FCcutoff = 0.5,
+                legendLabels = NULL,
+                legendIconSize = -1,
+                subtitle = NULL,
+                title = NULL,
+                cutoffLineCol = "white",
+                gridlines.major = FALSE,
+                gridlines.minor = FALSE,
+                xlim = c(-4,4)) + coord_flip() +
+  geom_label(aes(x = 3, y = 0, label = "Int"), fill ="#009E73") +
+  geom_label(aes(x = -3, y = 0, label = "SL"), fill ="#0072B2") 
+dev.off()
+
+#Fig S13 D and E
 p <-FeaturePlot(CD8, features = c("CXCR6", "ITGAE"), combine=F, pt.size=0.00001, order=T) 
 
 for(i in 1:length(p)) {
@@ -1622,6 +1659,22 @@ dev.off()
 
 tiff("../plots_CD8/p.Trm.vln.tiff", width = 5*300, height = 5*500, res = 300, pointsize = 5)     
 Stacked_VlnPlot(CD8, features = c("CD69", "CXCR6", "ITGAE"), colors_use = pal_ident)
+dev.off()
+
+#Fig. S14B
+#Int markers from flow
+int_mark <- c("CD226", "CD28", "TBX21", "GZMB", "CX3CR1",
+              "KLRG1", "TIGIT", "KLRB1", "CD38", "GZMK",
+              "EOMES", "PDCD1", "FASLG")
+int_neg <- c("CD27", "TCF7", "IL7R", "CCR7", "CD69")              
+
+int <- gating_model(level=1, name="int", signature=int_mark)
+int <- gating_model(model=int, level=1, name = int_neg, signature = int_neg, negative=TRUE)
+int <- scGate(CD8, model = int)
+
+tiff("../plots_CD8/int.tiff", width = 5*280, height = 5*280, res = 150, pointsize = 5)     
+DimPlot_scCustom(int, group.by = "is.pure", colors_use = c("darkred", "lightgrey"), pt.size=0.00001) +
+  ggtitle("") + theme(legend.position="none") + NoAxes()
 dev.off()
 
 #######################
@@ -1833,3 +1886,16 @@ FeaturePlot_scCustom(CD8, features = "HIF1A(50g)", colors_use =  viridis_plasma_
 
 CD8 <-readRDS("CD8sub_test.rds")
 
+saveRDS(CD8,"../4MacCD8.rds")
+
+DimPlot(CD8)
+CD8@active.ident <- CD8$clusters
+library(keras)
+library(Trex)
+##Setting up Tensor Flow
+library(reticulate)
+reticulate::conda_create("r-reticulate", packages = "3.6") ##If first time using reticulate
+use_condaenv(condaenv = "r-reticulate", required = TRUE)
+library(tensorflow)
+
+Trex_vectors <- maTrex(CD8)
