@@ -355,6 +355,7 @@ sobj <- RenameIdents(object = sobj,
 sobj$clusters <- sobj@active.ident #define a variable "clusters" and assign active.ident to it
 
 #Plot clusters proportion across all samples
+#Save Fig. S3B
 tiff("../plots_CD8/barplot.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
 ggplot(sobj@meta.data, aes(x=clusters, fill=sample_id)) + geom_bar(position = "fill") + theme_bw() + 
   scale_fill_manual(values= pal_ident) + xlab("") + ylab("") + coord_flip()
@@ -367,16 +368,19 @@ sobj <- subset(sobj, cells = T_NK)
 
 p.subsets <- cowplot::plot_grid(pcd3, pcd8, pcd4, pnk, pgd, pclus, nrow = 2) 
 
+#Save Fig, S3A
 tiff("../plots/all.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 p.subsets #plot and save subsets
 dev.off()
 
+#Save Fig. S3C
 tiff("../plots_CD8/all_annot.tiff", width = 5*250, height = 5*250, res = 300, pointsize = 5)     
 pclus2 <- DimPlot_scCustom(sobj, label = TRUE, colors_use = pal_ident, figure_plot = TRUE, pt.size = 0.00001,
                            label.size = 7) & theme(legend.position = 'none')
 pclus2 #plot and save annotated clusters
 dev.off()
 
+#Save Fig. S3D
 tiff("../plots_CD8/dotplot.tiff", width = 5*500, height = 5*180, res = 300, pointsize = 5)     
 DotPlot_scCustom(sobj, features = c("CD3D","CD3G","CD8A","CD8B","CD4",
                                     "TRAV1-2","SLC4A10","NCAM1","KLRD1",
