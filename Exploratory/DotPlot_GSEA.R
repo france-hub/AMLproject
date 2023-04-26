@@ -1,5 +1,5 @@
 #This script plots gene signature enrichments from Zheng et al.
-#Fig. 1F
+#Fig. 1A
 
 rm(list = ls())
 
