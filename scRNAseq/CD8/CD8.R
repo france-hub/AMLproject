@@ -1851,52 +1851,34 @@ regulonActivity_byCellType <- sapply(split(rownames(cellInfo), cellInfo$clusters
                                      function(cells) rowMeans(getAUC(regulonAUC)[,cells]))
 mat <- t(scale(t(regulonActivity_byCellType), center = T, scale=T))
 rownames(mat) <- gsub("_extended", "", rownames(mat))
-mat <- mat %>% as.data.frame() %>%  select(c("Naive", "StL", "ActEx", "SL1", "SL2")) %>% as.matrix()
+mat <- mat %>% as.data.frame() %>%  select(c("Naive", "StL", "ActEx", "Int", "SL")) %>% as.matrix()
 cols <- pal_ident[seq_along(levels(CD8$clusters2))]
-cols <- setNames(cols, c("Naive", "StL", "SL1", "ActEx", "SL2"))
-col_anno <- HeatmapAnnotation(
-  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SL1", "SL2")),
-  col = list(cluster_id = cols, gp = gpar(col = "white"))) 
+cols <- setNames(cols, c("Naive", "StL", "Int", "ActEx", "SL"))
+row_anno <- rowAnnotation(
+  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "Int", "SL")),
+  col = list(cluster_id = cols, gp = gpar(col = "white")),
+  annotation_name_gp = gpar(fontsize = 0))
 lgd_aes <- list(direction = "vertical", legend_width = unit(2.2, "cm"),
                 title = "Regulon activity")
-h.reg <- Heatmap(mat,
+
+
+idx <- which(rownames(mat) %in% c("IRF2", "IRF3", "IRF7", "STAT1", "STAT2", "RUNX3",
+                                  "TBX21", "ETS1", "JUN", "JUNB", "JUND", "FOS", "FOSL", "BATF",
+                                  "HIF1A"))
+
+colLab <- rep("black", nrow(mat))
+colLab[idx] <- "red"
+
+h.reg <- Heatmap(t(mat),
                  cluster_rows = FALSE,
                  cluster_columns = FALSE,
-                 row_names_side = "right",
-                 bottom_annotation = col_anno,
-                 row_names_gp = grid::gpar(fontsize = 7),
+                 row_names_side = "left",
+                 left_annotation = row_anno,
+                 row_names_gp = grid::gpar(fontsize = 18),
                  heatmap_legend_param = lgd_aes,
-                 column_names_gp = gpar(fontsize = 15))
+                 column_names_gp = gpar(col = colLab, fontsize = 12))
 
-tiff("../heat.tiff", width = 5*300, height = 5*500, res = 300, pointsize = 5)     
+tiff("heat.tiff", width = 5*850, height = 5*200, res = 300, pointsize = 5)    
 h.reg
 dev.off()
-
-#Add the info obtained with SCENIC to Seurat metadata for additional plotting options
-AUC.df <- t(AUCell::getAUC(regulonAUC)) %>% as.data.frame()
-colnames(AUC.df) <- gsub("_extended|\\s", "", colnames(AUC.df))
-md <- CD8@meta.data
-AUC.ord <- AUC.df %>% slice(match(rownames(md), rownames(AUC.df)))
-all(rownames(md) == rownames(AUC.ord))
-md <- cbind(md, AUC.ord)
-CD8@meta.data <- md
-AUCell::AUCell_plotTSNE(dr_coords, cellsAUC=selectRegulons(regulonAUC, "HIF1A"), plots = "AUC")
-
-FeaturePlot_scCustom(CD8, features = "HIF1A(50g)", colors_use =  viridis_plasma_light_high, order = TRUE, 
-                     split.by = "group_id")
-
 CD8 <-readRDS("CD8sub_test.rds")
-
-saveRDS(CD8,"../4MacCD8.rds")
-
-DimPlot(CD8)
-CD8@active.ident <- CD8$clusters
-library(keras)
-library(Trex)
-##Setting up Tensor Flow
-library(reticulate)
-reticulate::conda_create("r-reticulate", packages = "3.6") ##If first time using reticulate
-use_condaenv(condaenv = "r-reticulate", required = TRUE)
-library(tensorflow)
-
-Trex_vectors <- maTrex(CD8)
