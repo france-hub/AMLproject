@@ -61,7 +61,6 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 PrimaryDirectory <- getwd()
 PrimaryDirectory
 
-#2) Define the directory where the fcs files are located 
 fcs_1 <- "fcs_1"
 FCS1Directory <- paste(PrimaryDirectory, fcs_1, sep = "/")
 dir.create(FCS1Directory)
@@ -320,7 +319,7 @@ df <- df %>% mutate(group_id = case_when(str_detect(sample_id, "CR") ~ "Res",
                                           str_detect(sample_id, "HC") ~ "HD",
                                           str_detect(sample_id, "NR") ~ "NonRes"))
 
-barplot <- ggplot(df, aes(x = group_id, y = Freq, fill = cluster_id)) +
+barplot <- ggplot(df, aes(x = condition, y = Freq, fill = cluster_id)) +
   geom_col(position = "fill") +
   scale_y_continuous(labels = scales::percent) +
   ylab("") + xlab("") + scale_fill_manual(values = pal_ident) + theme_bw() +
@@ -334,12 +333,11 @@ barplot <- ggplot(df, aes(x = group_id, y = Freq, fill = cluster_id)) +
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 12),
     legend.key.size = unit(0.4, "cm")) 
-
+getwd()
 #Save Fig. 1D
-tiff("./plots/barplot.tiff", width = 5*250, height = 5*500, res = 300, pointsize = 5)     
+tiff("./barplot.tiff", width = 5*200, height = 5*200, res = 300, pointsize = 5)     
 barplot
 dev.off()
-
 #Ratio StL/SL (work in progress)
 sce$cluster_annotation <- cluster_ids(sce, "cluster_annotation")
 p <- plotCounts(sce, group_by = "sample_id", color_by = "cluster_annotation")
@@ -411,3 +409,4 @@ dev.off()
 saveRDS(sce, "sce.rds") #FROM HERE
 
 sce <- readRDS("sce.rds")
+levels(sce$sample_id %>% factor())
