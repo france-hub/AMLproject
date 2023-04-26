@@ -71,7 +71,6 @@ library(viridis)
 library(EnhancedVolcano)
 library(scCustomize)
 library(vip)
-library(tidymodels)
 library(scProportionTest)
 library(decoupleR)
 library(OmnipathR)
@@ -237,6 +236,21 @@ tiff("../plots_CD8/scores_dys.tiff", width = 5*180, height = 5*200, res = 300, p
 p.dys <- p.dys + theme_void() + theme(legend.position = "none") + ggtitle("Dysfunction score (Good et al. 2021)") + 
   theme(plot.title = element_text(hjust = 0.5))
 plot_grid(p.dys, legend, ncol = 1, rel_heights = c(1, .2))
+dev.off()
+
+#GZMK IL7R score
+#Signature dysfunction June et al.
+gz.i7 <- list(c("GZMK", "IL7R"))
+CD8 <- AddModuleScore(CD8, features = gz.i7, name = "gz.i7")
+p.gzi7 <- FeaturePlot(CD8, features = "gz.i71", pt.size = 0.1, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+  theme(legend.position="none") +
+  scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")),
+                         breaks=c(0.09, 0.42), label = c("0", "Maximum")) 
+
+#Save Fig. S8
+tiff("../plots_CD8/gzmk_il7.tiff", width = 5*180, height = 5*200, res = 300, pointsize = 5)     
+p.gzi7 + theme_void() + theme(legend.position = "none") + ggtitle("GZMK + IL7R score") + 
+  theme(plot.title = element_text(hjust = 0.5))
 dev.off()
 
 #Distribution of senescence an disfunction across the 12 clusters
