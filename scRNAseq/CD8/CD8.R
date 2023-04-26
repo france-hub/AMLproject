@@ -29,7 +29,7 @@
 ##F) Reclustering with increased resolution and further analyses
 #1) Reclustering and clusters frequencies across conditions
 #2) STARTRAC method
-#3) DGE including clusters SL1 and SL2
+#3) DGE Int vs. SL
 
 ##G) Velocity inference
 #1) Load in loom files and prepare to analyze in Python via scVelo
@@ -146,6 +146,9 @@ features <- c("CCR7", "TCF7", "LEF1", "SELL", "IL7R", "SLAMF6",
               "TRAV1-2", "SLC4A10")   
 #Define blue-white-red palette to be used consistently for plotting expression values
 pal_exp <- colorRampPalette(c("blue", "white", "red"))(256)
+
+#Save Fig. 2B
+
 tiff("../plots_CD8/cd8dot.tiff", width = 5*500, height = 5*250, res = 300, pointsize = 5)     
 DotPlot_scCustom(CD8, features, colors_use = pal_exp, x_lab_rotate = TRUE) + 
   theme(axis.text.x = element_text(size = 8))
@@ -515,7 +518,7 @@ p.ann <- DimPlot_scCustom(CD8, label = TRUE, label.size = 4, colors_use = pal_id
 p.ann & NoLegend()
 dev.off()
 
-#Save Fig. 3C
+#Save Fig. 3E
 tiff("../plots_CD8/UMAP_groupId.tiff", width = 5*300, height = 5*600, res = 300, pointsize = 5)     
 p.abund <- DimPlot_scCustom(CD8, label = TRUE, split.by = "group_id", colors_use = pal_ident, split_seurat = TRUE, label.size = 6, num_columns = 1) + 
   theme_minimal(base_size = 35) + 
@@ -527,7 +530,7 @@ p.abund <- DimPlot_scCustom(CD8, label = TRUE, split.by = "group_id", colors_use
 p.abund 
 dev.off()
 
-#Save Fig. 3D
+#Save Fig. 3F
 tiff("../plots_CD8/UMAP_density.tiff", width = 5*500, height = 5*180, res = 300, pointsize = 5)    
 CD8.dens <- subset(CD8, group_id %in% c("Res", "NonRes"))
 p.dens <- DimPlot(CD8.dens, reduction = 'umap', split.by = "RespTmp")  + NoLegend() + NoAxes() 
@@ -751,7 +754,7 @@ p.perm2 <- permutation_plot(prop_test_R.postVSNR.post, log2FD_threshold = log2(2
 
 p.perm_R_NR <- plot_grid(p.perm1, p.perm2, rel_widths = c(1,1.9), nrow = 1)
 
-#Save Fig. 3E
+#Save Fig. 3G
 tiff("../plots_CD8/sigPerm.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
 p.perm_R_NR
 dev.off()
@@ -829,7 +832,7 @@ df.anova <- propeller.anova(prop.list=props, design=design, coef = c(1,2,3),
                             robust=TRUE, trend=FALSE, sort=TRUE) %>% as.data.frame() 
 df.anova <- df.anova %>% set_colnames(c("HD", "NonRes", "Res", "Fstat", "p.value", "FDR"))
 
-#Save fig. 3G
+#Save fig. 3I
 #boxplots
 fqs <- props$Proportions
 df.plot <- set_colnames(reshape2::melt(fqs), c("cluster_id", "sample_id", "frequency"))
@@ -968,7 +971,7 @@ p.traj <- ggplot(df, aes(x = UMAP_1, y = UMAP_2)) +
   theme(legend.position = c(.15, .35),
         legend.background = element_blank()) +  theme_minimal()  
 
-#Save Fig. 4A
+#Save Fig. 5A
 tiff("../plots_CD8/umap_traj.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
 p.traj +theme_void()
 dev.off()
@@ -1099,7 +1102,7 @@ p.patt <- plot_grid(p.gzmk, p.gzmb, p.gnly, p.prf1, p.nkg7, p.fgfbp2) +
   draw_label("Pseudotime", x=0.5, y=  0, vjust=-0.5, angle= 0) +
   draw_label("Log(Expression +1)", x=  0, y=0.5, vjust= 1.5, angle=90)
 
-#Save Fig. 4B
+#Save Fig. 5B
 tiff("../plots_CD8/genes_traj.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
 plot_grid(p.patt, legend, rel_widths = c(4,1))
 dev.off()
@@ -1154,7 +1157,7 @@ heat.ae <- Heatmap(mat.ae[1:100,],
                    cluster_rows = T,
                    column_title = "ActEx",
                    heatmap_legend_param = lgd_aes)
-#Save Fig. 4
+#Save Fig. 5C
 tiff("../plots_CD8/heatTraj.tiff", width = 5*350, height = 5*400, res = 300, pointsize = 5)     
 heat.sl + heat.ae 
 dev.off()
@@ -1425,7 +1428,7 @@ ActExvStL <- ggplot(data = data_ActExvStL, aes(x = gene_set, y = t, fill = t)) +
                        breaks=c(-32, 34), label = c("StL", "ActEx"))
 
 
-#Save Fig. 3I
+#Save Fig. 4E
 tiff("../plots_CD8/GSVA_plots.tiff", width = 5*830, height = 5*300, res = 300, pointsize = 5)     
 plot_grid(slVSstl, SlVSActEx, nrow = 1)
 dev.off()
@@ -1454,7 +1457,7 @@ out <- SCpubr::do_PathwayActivityPlot(sample = CD8,
                                       split.by = "group_id")
 p.patHeat <- out$heatmaps$average_scores
 
-#Save Fig. 3H
+#Save Fig. 4D
 tiff("../plots_CD8/heat_hyp.tiff", width = 5*400, height = 5*500, res = 300, pointsize = 5)     
 p.patHeat
 dev.off()
