@@ -742,7 +742,6 @@ p.sig <- plot_grid(p.naive, p.stl, p.actex, p.sl, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
 
-
 #3) DA analysis using permutation test, speckle (Anova) and CNA
 #Permutation test 
 prop_test <- sc_utils(CD8)
@@ -759,21 +758,24 @@ prop_test_R.postVSNR.post <- permutation_test(
   sample_identity = "RespTmp"
 )
 
-p.perm1 <- permutation_plot(prop_test_R.basVSNR.bas, log2FD_threshold = log2(2)) + 
-  ggtitle("Res_bas VS NonRes_bas") + 
+p.perm1 <- permutation_plot(prop_test_R.basVSNR.bas, log2FD_threshold = log2(2))  + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
+
 p.perm2 <- permutation_plot(prop_test_R.postVSNR.post, log2FD_threshold = log2(2))+
-  ggtitle("Res_post VS NonRes_post") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue"))
 
+
 p.perm_R_NR <- plot_grid(p.perm1, p.perm2, rel_widths = c(1,1.9), nrow = 1)
 
+
+
+
 #Save Fig. 3G
-tiff("../plots_CD8/sigPerm.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
+tiff("../plots_CD8/sigPerm.tiff", width = 5*300, height = 5*200, res = 150, pointsize = 5)     
 p.perm_R_NR
 dev.off()
 
