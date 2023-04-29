@@ -222,7 +222,7 @@ sce <- runDR(sce, dr =  "UMAP", cells = n_cells, features = "type")
 annotation_table <- readxl::read_excel("annotation_1.xlsx")
 # convert to factor with merged clusters in desired order
 annotation_table$new_cluster <- factor(annotation_table$new_cluster,
-                                       levels = c("Naive", "StL", "SL",
+                                       levels = c("Naive", "StL", "SenL",
                                                   "Act"))
 #apply manual annotation
 sce <- mergeClusters(sce, k = "meta7", 
@@ -243,7 +243,7 @@ p <- plotExprHeatmap(sce, features = "type",  hm_pal = pal_exp, k_pal = pal_iden
 cols <- pal_ident[seq_along(levels(annotation_table$new_cluster))]
 cols <- setNames(cols, levels(annotation_table$new_cluster))
 col_anno <- HeatmapAnnotation(
-  df = data.frame(cluster_id = c("Naive", "StL", "SL", "Act")),
+  df = data.frame(cluster_id = c("Naive", "StL", "SenL", "Act")),
   col = list(cluster_id = cols, gp = gpar(col = "white")),
   annotation_name_gp= gpar(fontsize = 0),
   show_legend = FALSE) 
@@ -330,7 +330,6 @@ barplot <- ggplot(df, aes(x = condition, y = Freq, fill = cluster_id)) +
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 12),
     legend.key.size = unit(0.4, "cm")) 
-getwd()
 
 #Save Fig. 1D
 tiff("./barplot.tiff", width = 5*200, height = 5*200, res = 300, pointsize = 5)     
@@ -338,3 +337,4 @@ barplot
 dev.off()
 
 saveRDS(sce, "sce.rds") #FROM HERE
+sce <- readRDS("sce.rds")
