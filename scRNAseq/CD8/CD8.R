@@ -20,7 +20,7 @@
 #2) Use tradeSeq to fit a generalized additive model (GAM) and then use patternTest to study gene expression
 
 ##D) Compute gene set variation analysis and infer pathway activity
-#1) Use GSVA and limma to study gene set enrichments between couples of subsets (SLvsStL, SLvsActEx, ActExvsStL)
+#1) Use GSVA and limma to study gene set enrichments between couples of subsets (SenLvsStL, SenLvsActEx, ActExvsStL)
 #2) Use SCpubr and decoupleR for pathway activity inference
 
 ##E) TCR repertoire analysis
@@ -30,7 +30,7 @@
 ##F) Reclustering with increased resolution and further analyses
 #1) Reclustering and clusters frequencies across conditions
 #2) STARTRAC method
-#3) DGE Int vs. SL
+#3) DGE Int vs. SenL
 #4) Gating model for SLEC markers 
 #5) Trm markers
 #6) Gating model for Int markers (from spectral flow data)
@@ -510,14 +510,14 @@ rm(list=setdiff(ls(), "CD8"))
 CD8 <- RenameIdents(CD8,
                     "0" = "Naive",
                     "1" = "StL",
-                    "2" = "SL",
+                    "2" = "SenL",
                     "3" = "ActEx",
-                    "4" = "SL",
+                    "4" = "SenL",
                     "5" = "Naive", 
-                    "6" = "SL", 
-                    "7" = "SL", 
+                    "6" = "SenL", 
+                    "7" = "SenL", 
                     "8" = "Naive",
-                    "9" = "SL",
+                    "9" = "SenL",
                     "10" = "StL",
                     "11" = "StL",
                     "12" = "ActEx")
@@ -563,7 +563,7 @@ cust_mark <- list(
   Naive = c("CCR7", "MAL", "LEF1", "SELL", "TCF7"),
   StL = c("BCL2", "BACH2", "CD27","IL7R", "SLAMF6", "CXCR3", "GZMK"),
   ActEx = c("EOMES", "CCL4", "XCL2", "CCL3", "XCL1", "KLF6", "TIGIT", "CD69", "CD160", "PDCD1", "TOX", "NR4A2",  "DUSP2"),
-  SL = c("NKG7", "TBX21",  "CD38","FCRL6", "FCGR3A", "C1orf21", "PRF1", "ENO1",
+  SenL = c("NKG7", "TBX21",  "CD38","FCRL6", "FCGR3A", "C1orf21", "PRF1", "ENO1",
          "GNLY", "ZEB2", "CX3CR1", "FGFBP2", "KLRD1", "GZMB","ZNF683", "CD226")
 )
 
@@ -598,7 +598,7 @@ mat <- mat %>% as.data.frame() %>%  select(names(cust_mark)) %>% as.matrix()
 cols <- pal_ident[seq_along(levels(CD8$clusters))]
 cols <- setNames(cols, levels(CD8$clusters))
 col_anno <- HeatmapAnnotation(
-  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SL")),
+  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SenL")),
   col = list(cluster_id = cols, gp = gpar(col = "white"))) 
 lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
                 title = "Expression")
@@ -630,7 +630,7 @@ df <- df %>% distinct(top10.gene, .keep_all = TRUE)
 df  <-  reshape(transform(df, indx = ave(as.character(top10.cluster), top10.cluster, FUN = seq)), 
                 idvar = "indx", timevar = "top10.cluster", direction = "wide") 
 colnames(df) <- gsub("top10.gene.", "", colnames(df))
-df <- df %>% relocate(SL, .after = ActEx)
+df <- df %>% relocate(SenL, .after = ActEx)
 
 all_markers <- df %>%
   select(-indx) 
@@ -678,7 +678,7 @@ mat <- mat %>% as.data.frame() %>%  select(names(comb_mark)) %>% as.matrix()
 cols <- pal_ident[seq_along(levels(CD8$clusters))]
 cols <- setNames(cols, levels(CD8$clusters))
 col_anno <- HeatmapAnnotation(
-  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SL")),
+  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SenL")),
   col = list(cluster_id = cols, gp = gpar(col = "white")), 
   show_legend = c(FALSE, TRUE)) 
 graphics = list(
@@ -730,15 +730,15 @@ p.actex <- FeaturePlot(CD8, "sig_actex1", pt.size = 0.00001, order = T,  min.cut
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
   NoAxes() + NoLegend() + ggtitle("ActEx") + theme(plot.title = element_text(size = 10, face = "bold"))
 
-sig_sl <- list(comb_mark$SL)
-CD8 <- AddModuleScore(CD8, features = sig_sl, name = "sig_sl")
-p.sl <- FeaturePlot(CD8, "sig_sl1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+sig_SenL <- list(comb_mark$SenL)
+CD8 <- AddModuleScore(CD8, features = sig_SenL, name = "sig_SenL")
+p.SenL <- FeaturePlot(CD8, "sig_SenL1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
-  NoAxes() + NoLegend() + ggtitle("SL") + theme(plot.title = element_text(size = 10, face = "bold"))
+  NoAxes() + NoLegend() + ggtitle("SenL") + theme(plot.title = element_text(size = 10, face = "bold"))
 
 #Save Fig. S5
 tiff("../plots_CD8/p.featcust.tiff", width = 5*210, height = 5*210, res = 300, pointsize = 5)     
-p.sig <- plot_grid(p.naive, p.stl, p.actex, p.sl, nrow = 2)
+p.sig <- plot_grid(p.naive, p.stl, p.actex, p.SenL, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
 
@@ -770,9 +770,6 @@ p.perm2 <- permutation_plot(prop_test_R.postVSNR.post, log2FD_threshold = log2(2
 
 
 p.perm_R_NR <- plot_grid(p.perm1, p.perm2, rel_widths = c(1,1.9), nrow = 1)
-
-
-
 
 #Save Fig. 3G
 tiff("../plots_CD8/sigPerm.tiff", width = 5*300, height = 5*200, res = 150, pointsize = 5)     
@@ -928,15 +925,15 @@ p.actex <- FeaturePlot(CD8.cna, "sig_actex1", pt.size = 0.00001, order = T,  min
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
   NoAxes() + NoLegend() + ggtitle("ActEx") + theme(plot.title = element_text(size = 10, face = "bold"))
 
-sig_sl <- list(comb_mark$SL)
-CD8.cna <- AddModuleScore(CD8.cna, features = sig_sl, name = "sig_sl")
-p.sl <- FeaturePlot(CD8.cna, "sig_sl1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+sig_SenL <- list(comb_mark$SenL)
+CD8.cna <- AddModuleScore(CD8.cna, features = sig_SenL, name = "sig_SenL")
+p.SenL <- FeaturePlot(CD8.cna, "sig_SenL1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
-  NoAxes() + NoLegend() + ggtitle("SL") + theme(plot.title = element_text(size = 10, face = "bold"))
+  NoAxes() + NoLegend() + ggtitle("SenL") + theme(plot.title = element_text(size = 10, face = "bold"))
 
 #Save Fig. S7
 tiff("../plots_CD8/p.featcustCNA.tiff", width = 5*210, height = 5*210, res = 300, pointsize = 5)     
-p.sig <- plot_grid(p.naive, p.stl, p.actex, p.sl, nrow = 2)
+p.sig <- plot_grid(p.naive, p.stl, p.actex, p.SenL, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
 
@@ -987,7 +984,7 @@ p.traj <- ggplot(df, aes(x = UMAP_1, y = UMAP_2)) +
   geom_path(data = curves %>% arrange(Order),
             aes(group = Lineage), col = "black",  arrow = arrow(), lineend = "round", size = 1.5) +
   annotate("text", x = -7.7, y = 3.7, label = "ActEx", size = 5) +
-  annotate("text", x = -8, y = -5.6, label = "SL", size = 5) +
+  annotate("text", x = -8, y = -5.6, label = "SenL", size = 5) +
   theme(legend.position = c(.15, .35),
         legend.background = element_blank()) +  theme_minimal()  
 
@@ -1038,7 +1035,7 @@ oPat <- order(patternRes$waldStat, decreasing = TRUE)
 rownames(patternRes)[oPat][1:20]
 
 p.gzmk <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][1], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
   theme(legend.position = "none") +
   ggtitle ("GZMK") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1053,7 +1050,7 @@ p.gzmk <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oP
 legend <- cowplot::get_legend(p.leg + theme(legend.position = "right"))
 
 p.prf1 <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][5], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
   theme(legend.position = "none") +
   ggtitle ("PRF1") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1066,7 +1063,7 @@ p.prf1 <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPa
         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) 
 
 p.gzmb <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][6], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
   theme(legend.position = "none") +
   ggtitle ("GZMB") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1079,7 +1076,7 @@ p.gzmb <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPa
         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) 
 
 p.fgfbp2 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][7], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
   theme(legend.position = "none") +
   ggtitle ("FGFBP2") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1092,7 +1089,7 @@ p.fgfbp2 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[
         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) 
 
 p.gnly <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][9], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
   theme(legend.position = "none") +
   ggtitle ("GNLY") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1106,7 +1103,7 @@ p.gnly <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oP
 
 
 p.nkg7 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][15], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
   theme(legend.position = "none") +
   ggtitle ("NKG7") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1132,25 +1129,25 @@ genes <- rownames(patternRes)[oPat]
 df.tr <- predictSmooth(sce.gam, gene = genes, tidy = FALSE)
 df <- as.data.frame(df.tr)
 
-#sl = senescent-like; ae = activated-exhausted
+#SenL = senescent-like; ae = activated-exhausted
 df.ls <- map(set_names(c("lineage1", "lineage2")),~select(df,starts_with(.x)))
-mat.sl <- df.ls$lineage1 
-mat.sl <- mat.sl %>% filter(!str_detect(rownames(mat.sl), "^RP[SL]|^MT-")) %>% 
+mat.SenL <- df.ls$lineage1 
+mat.SenL <- mat.SenL %>% filter(!str_detect(rownames(mat.SenL), "^RP[SL]|^MT-")) %>% 
   as.data.frame.matrix()
-mat.sl <- t(scale(t(mat.sl)))
+mat.SenL <- t(scale(t(mat.SenL)))
 genes_int <- c("GZMK", "PRF1", "GZMB", "FGFBP2", "GNLY", "CTSW", "CD69", "NKG7", "KLRG1", "KLRD1", "DUSP2",
                "NR4A2", "CD27","GZMA", "CCL5", "SELL", "LGALS1", "NFKBIA", "LTB", "TCF7",
                "TNFAIP3", "NELL2", "GZMH", "CST7","MALAT1", "IL7R", "MAL", "ZNF683",
                "CCR7", "LDHA", "KLRB1", "CCL4", "CX3CR1", "LEF1", "ADGRG1", "CCL3",
                "TIGIT", "FCRL6", "XCL1", "FCGR3A", "GZMM", "ZEB2")
 
-heat.sl <- Heatmap(mat.sl[1:100,],
+heat.SenL <- Heatmap(mat.SenL[1:100,],
                    show_column_names = FALSE,
                    row_names_gp = grid::gpar(fontsize = 0),
                    cluster_columns = FALSE,
                    cluster_rows = TRUE,
                    show_heatmap_legend = FALSE,
-                   column_title = "SL")
+                   column_title = "SenL")
 
 mat.ae <- df.ls$lineage2 
 mat.ae <- mat.ae %>% filter(!str_detect(rownames(mat.ae), "^RP[SL]|^MT-")) %>% 
@@ -1179,14 +1176,14 @@ heat.ae <- Heatmap(mat.ae[1:100,],
                    heatmap_legend_param = lgd_aes)
 #Save Fig. 5C
 tiff("../plots_CD8/heatTraj.tiff", width = 5*350, height = 5*400, res = 300, pointsize = 5)     
-heat.sl + heat.ae 
+heat.SenL + heat.ae 
 dev.off()
 
 ###################################################################
 ##D) Compute gene set variation analysis and infer pathway activity
 ###################################################################
 
-#1) Use GSVA and limma to study gene set enrichments between couples of subsets (SLvsStL, SLvsActEx, ActExvsStL)
+#1) Use GSVA and limma to study gene set enrichments between couples of subsets (SenLvsStL, SenLvsActEx, ActExvsStL)
 # function to read GMT file
 read_GMT_file <- function(file) {
   gmt <- readr::read_delim(
@@ -1221,10 +1218,10 @@ gene_sets <- read_GMT_file('../h.all.v7.2.symbols.gmt')
 names(gene_sets$genesets) <- gene_sets$geneset.names
 
 ##Senescence-like VS Stem-like
-# get indices of cells which are either SL or StL
-c_SLvStL <- CD8@meta.data %>%
+# get indices of cells which are either SenL or StL
+c_SenLvStL <- CD8@meta.data %>%
   mutate(row_number = row_number()) %>%
-  dplyr::filter(grepl(clusters, pattern = 'SL|StL')) %>%
+  dplyr::filter(grepl(clusters, pattern = 'SenL|StL')) %>%
   arrange(clusters) %>%
   pull(row_number)
 
@@ -1234,32 +1231,32 @@ genes_to_analyze <- gene_sets$genesets %>% unlist() %>% unique()
 genes_to_analyze <- genes_to_analyze[which(genes_to_analyze %in% rownames(CD8@assays$RNA@counts))]
 
 # get expression matrix and reduce it to cells and genes of interest
-mat_SLvStL <- CD8@assays$RNA@counts[ genes_to_analyze , c_SLvStL] %>% as.matrix()
+mat_SenLvStL <- CD8@assays$RNA@counts[ genes_to_analyze , c_SenLvStL] %>% as.matrix()
 
 # perform GSVA
-g_SLvStL <- GSVA::gsva(
-  mat_SLvStL,
+g_SenLvStL <- GSVA::gsva(
+  mat_SenLvStL,
   gset.idx.list = gene_sets$genesets,
   parallel.sz = 1
 )
 
 # generate design matrix
-dm_SLvStL <- tibble(
+dm_SenLvStL <- tibble(
   control = 1,
   test = c(
     rep(0, CD8@meta.data %>% dplyr::filter(clusters == 'StL') %>% nrow()),
-    rep(1, CD8@meta.data %>% dplyr::filter(clusters == 'SL') %>% nrow())
+    rep(1, CD8@meta.data %>% dplyr::filter(clusters == 'SenL') %>% nrow())
   )
 )
 
 # fit linear model, followed by empirical Bayes statistics for differential
 # enrichment analysis
-fit_SLvStL <- lmFit(g_SLvStL, dm_SLvStL)
-fit_SLvStL <- eBayes(fit_SLvStL)
+fit_SenLvStL <- lmFit(g_SenLvStL, dm_SenLvStL)
+fit_SenLvStL <- eBayes(fit_SenLvStL)
 
 # prepare data for plotting
-data_SLvStL <- topTable(fit_SLvStL, coef = 'test', number = 50) %>%
-  mutate(gene_set = rownames(fit_SLvStL$t)) %>%
+data_SenLvStL <- topTable(fit_SenLvStL, coef = 'test', number = 50) %>%
+  mutate(gene_set = rownames(fit_SenLvStL$t)) %>%
   arrange(t) %>%
   mutate(
     gene_set = factor(gene_set, levels = gene_set),
@@ -1270,7 +1267,7 @@ data_SLvStL <- topTable(fit_SLvStL, coef = 'test', number = 50) %>%
 
 #Save Fig. 3I
 # plot t-value
-slVSstl <- ggplot(data = data_SLvStL, aes(x = gene_set, y = t, fill = t)) +
+SenLVSstl <- ggplot(data = data_SenLvStL, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
   geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = "grey80") +
   geom_text(
@@ -1281,7 +1278,7 @@ slVSstl <- ggplot(data = data_SLvStL, aes(x = gene_set, y = t, fill = t)) +
       hjust = just,
       color = color
     ),
-    nudge_y = data_SLvStL$nudge_y, size = 3
+    nudge_y = data_SenLvStL$nudge_y, size = 3
   ) +
   scale_x_discrete(name = '', labels = NULL) +
   scale_y_continuous(name = 't-value', limits = c(-55,55)) +
@@ -1297,43 +1294,43 @@ slVSstl <- ggplot(data = data_SLvStL, aes(x = gene_set, y = t, fill = t)) +
     legend.position = "bottom"
   ) + ggtitle("Senescent-like VS Stem-like") + 
   scale_fill_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), 
-                               breaks=c(-30, 25), label = c("StL", "SL"))
+                               breaks=c(-30, 25), label = c("StL", "SenL"))
 
 ##Senescence-like VS Activated Exhausted
-# get indices of cells which are either SL or StL
-c_SLvActEx <- CD8@meta.data %>%
+# get indices of cells which are either SenL or StL
+c_SenLvActEx <- CD8@meta.data %>%
   mutate(row_number = row_number()) %>%
-  dplyr::filter(grepl(clusters, pattern = 'SL|ActEx')) %>%
+  dplyr::filter(grepl(clusters, pattern = 'SenL|ActEx')) %>%
   arrange(clusters) %>%
   pull(row_number)
 
 # get expression matrix and reduce it to cells and genes of interest
-mat_SLvActEx <- CD8@assays$RNA@counts[ genes_to_analyze , c_SLvActEx] %>% as.matrix()
+mat_SenLvActEx <- CD8@assays$RNA@counts[ genes_to_analyze , c_SenLvActEx] %>% as.matrix()
 
 # perform GSVA
-g_SLvActEx <- GSVA::gsva(
-  mat_SLvActEx,
+g_SenLvActEx <- GSVA::gsva(
+  mat_SenLvActEx,
   gset.idx.list = gene_sets$genesets,
   parallel.sz = 1
 )
 
 # generate design matrix
-dm_SLvActEx <- tibble(
+dm_SenLvActEx <- tibble(
   control = 1,
   test = c(
     rep(0, CD8@meta.data %>% dplyr::filter(clusters == 'ActEx') %>% nrow()),
-    rep(1, CD8@meta.data %>% dplyr::filter(clusters == 'SL') %>% nrow())
+    rep(1, CD8@meta.data %>% dplyr::filter(clusters == 'SenL') %>% nrow())
   )
 )
 
 # fit linear model, followed by empirical Bayes statistics for differential
 # enrichment analysis
-fit_SLvActEx <- lmFit(g_SLvActEx, dm_SLvActEx)
-fit_SLvActEx <- eBayes(fit_SLvActEx)
+fit_SenLvActEx <- lmFit(g_SenLvActEx, dm_SenLvActEx)
+fit_SenLvActEx <- eBayes(fit_SenLvActEx)
 
 # prepare data for plotting
-data_SLvActEx <- topTable(fit_SLvActEx, coef = 'test', number = 50) %>%
-  mutate(gene_set = rownames(fit_SLvActEx$t)) %>%
+data_SenLvActEx <- topTable(fit_SenLvActEx, coef = 'test', number = 50) %>%
+  mutate(gene_set = rownames(fit_SenLvActEx$t)) %>%
   arrange(t) %>%
   mutate(
     gene_set = factor(gene_set, levels = gene_set),
@@ -1343,7 +1340,7 @@ data_SLvActEx <- topTable(fit_SLvActEx, coef = 'test', number = 50) %>%
   )
 
 # plot t-value
-SlVSActEx <- ggplot(data = data_SLvActEx, aes(x = gene_set, y = t, fill = t)) +
+SenLVSActEx <- ggplot(data = data_SenLvActEx, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
   geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = 'grey80') +
   geom_text(
@@ -1354,11 +1351,11 @@ SlVSActEx <- ggplot(data = data_SLvActEx, aes(x = gene_set, y = t, fill = t)) +
       hjust = just,
       color = color
     ),
-    nudge_y = data_SLvActEx$nudge_y, size = 3
+    nudge_y = data_SenLvActEx$nudge_y, size = 3
   ) +
   scale_x_discrete(name = '', labels = NULL) +
   scale_y_continuous(name = 't-value', limits = c(-55,55)) +
-  scale_fill_distiller(palette = 'Spectral', limits = c(-max(data_SLvActEx$t), max(data_SLvActEx$t))) +
+  scale_fill_distiller(palette = 'Spectral', limits = c(-max(data_SenLvActEx$t), max(data_SenLvActEx$t))) +
   scale_color_manual(values = c('black' = 'black', 'grey' = 'grey')) +
   coord_flip() +
   guides(color = "none") +
@@ -1371,10 +1368,10 @@ SlVSActEx <- ggplot(data = data_SLvActEx, aes(x = gene_set, y = t, fill = t)) +
     plot.title = element_text(hjust = 0.5)
   ) + ggtitle("Senescent-like VS Activated-Exhausted") +
   scale_fill_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), 
-                               breaks=c(-32, 34), label = c("ActEx", "SL"))
+                               breaks=c(-32, 34), label = c("ActEx", "SenL"))
 
 ##Activated-Exhausted VS Stem-like
-# get indices of cells which are either SL or StL
+# get indices of cells which are either SenL or StL
 c_ActExvStL <- CD8@meta.data %>%
   mutate(row_number = row_number()) %>%
   dplyr::filter(grepl(clusters, pattern = 'ActEx|StL')) %>%
@@ -1450,7 +1447,7 @@ ActExvStL <- ggplot(data = data_ActExvStL, aes(x = gene_set, y = t, fill = t)) +
 
 #Save Fig. 4E
 tiff("../plots_CD8/GSVA_plots.tiff", width = 5*830, height = 5*300, res = 300, pointsize = 5)     
-plot_grid(slVSstl, SlVSActEx, nrow = 1)
+plot_grid(SenLVSstl, SenLVSActEx, nrow = 1)
 dev.off()
 
 #Save Fig. S10
@@ -1551,7 +1548,7 @@ df1 <- as.data.frame.matrix(table(CD8.clono$clusters, CD8.clono$Ag_specific))
 df2 <- as.data.frame.matrix(table(CD8.clono$clusters, CD8.clono$Expanded))
 df_all <- merge(df1, df2, by = 0)%>% mutate(Ag_specific = AgSp/(AgSp + No_AgSp)) %>%
   mutate(Freq.Exp = Exp/(Exp + Not_Exp)) %>% mutate(`log10 cell number` = log10(No_AgSp + AgSp))
-df_all$clusters <- factor(df_all$Row.names, levels = c("Naive","StL","SL","ActEx"))
+df_all$clusters <- factor(df_all$Row.names, levels = c("Naive","StL","SenL","ActEx"))
 
 #Save Fig. 6D
 tiff("../plots_CD8/AgSpec.tiff", width = 5*310, height = 5*250, res = 300, pointsize = 5)    
@@ -1573,7 +1570,7 @@ dev.off()
 #################
 
 #1) Reclustering and clusters frequencies across conditions
-#Different SL like clusters
+#Different SenL like clusters
 CD8 <- SetIdent(CD8, value = "integrated_snn_res.1.2")
 p.umap2 <- DimPlot(CD8, label = T, split.by = "group_id")
 
@@ -1583,26 +1580,26 @@ CD8 <- RenameIdents(CD8,
                     "1" = "StL",
                     "2" = "Int",
                     "3" = "Naive",
-                    "4" = "SL",
+                    "4" = "SenL",
                     "5" = "ActEx",
                     "6" = "Naive",
                     "7" = "StL",
                     "8" = "Int",
                     "9" = "ActEx",
                     "10" = "Int",
-                    "11" = "SL",
+                    "11" = "SenL",
                     "12" = "Naive",
-                    "13" = "SL",
+                    "13" = "SenL",
                     "14" = "StL",
-                    "15" = "SL",
+                    "15" = "SenL",
                     "16" = "StL",
                     "17" = "StL",
-                    "18" = "SL",
+                    "18" = "SenL",
                     "19" = "ActEx",
                     "20" = "ActEx")
 
 CD8$clusters2 <- CD8@active.ident
-CD8$clusters2 <- factor(CD8$clusters2, levels = c("Naive", "StL",   "Int", "ActEx", "SL"))
+CD8$clusters2 <- factor(CD8$clusters2, levels = c("Naive", "StL",   "Int", "ActEx", "SenL"))
 CD8@active.ident <- CD8$clusters2
 
 #Save Fig. S13
@@ -1616,7 +1613,7 @@ cluster_stats <- Cluster_Stats_All_Samples(CD8, group_by_var = "group_id") %>%
   mutate(freq_groupID = log10(Res/NonRes)) %>%  
   dplyr::filter(!str_detect("Total", Cluster))
 
-cluster_stats$Cluster <-  factor(cluster_stats$Cluster, levels = c("Naive", "StL",  "Int","ActEx", "SL"))
+cluster_stats$Cluster <-  factor(cluster_stats$Cluster, levels = c("Naive", "StL",  "Int","ActEx", "SenL"))
 
 colScale <- scale_colour_manual(name = "Cluster",values = pal_ident)
 
@@ -1670,12 +1667,12 @@ dev.off()
 
 DefaultAssay(CD8) <- "RNA"
 
-#DGE SL vs. Int
-mark.SL_Int <- FindMarkers(CD8, ident.1 = "Int", ident.2 = "SL")
+#DGE SenL vs. Int
+mark.SenL_Int <- FindMarkers(CD8, ident.1 = "Int", ident.2 = "SenL")
 
 tiff("../plots_CD8/volc.tiff", width = 5*250, height = 5*150, res = 150, pointsize = 5)     
-EnhancedVolcano(mark.SL_Int, 
-                lab = rownames(mark.SL_Int),
+EnhancedVolcano(mark.SenL_Int, 
+                lab = rownames(mark.SenL_Int),
                 selectLab = c("KLRC3", "TIGIT", "CD74", "CMC1",
                                      "FGFBP2", "KLRB1", "TNFAIP3",
                                      "ZNF683", "GNLY"),  
@@ -1694,7 +1691,7 @@ EnhancedVolcano(mark.SL_Int,
                 gridlines.minor = FALSE,
                 xlim = c(-4,4)) + coord_flip() +
   geom_label(aes(x = 3, y = 0, label = "Int"), fill ="#009E73") +
-  geom_label(aes(x = -3, y = 0, label = "SL"), fill ="#0072B2") 
+  geom_label(aes(x = -3, y = 0, label = "SenL"), fill ="#0072B2") 
 dev.off()
 
 
@@ -1797,8 +1794,8 @@ Convert("CD8_veloscv.h5Seurat", dest = "h5ad") ## --> continue in python
 
 #2) import from python the csv with the info on latent time and different subsets and plot
 df <- read.csv("l_time.csv")
-df <- df %>% arrange(factor(clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")))
-df$clusters2 <- factor(df$clusters2, levels = c("Naive", "StL", "ActEx", "SL1", "SL2")) 
+df <- df %>% arrange(factor(clusters2, levels = c("Naive", "StL", "ActEx", "Int", "SenL")))
+df$clusters2 <- factor(df$clusters2, levels = c("Naive", "StL", "ActEx", "Int", "SenL")) 
 
 #Save Fig. S12B
 tiff("../plots_CD8/jitt.tiff", width = 5*100, height = 5*60, res = 150, pointsize = 5)     
@@ -1831,8 +1828,8 @@ levels(cellInfo$clusters2)
 
 colVars <- list(CellType=c("Naive"="#F0E442",
                            "StL"="#E69F00",
-                           "SL1"="#0072B2",
-                           "SL2"='#56B4E9',
+                           "Int"="#0072B2",
+                           "SenL"='#56B4E9',
                            "ActEx"="#009E73"))
 colVars$CellType <- colVars$CellType[intersect(names(colVars$CellType), cellInfo$clusters2)]
 myDatasetTitle <- "SCENIC AML" 
@@ -1923,11 +1920,11 @@ regulonActivity_byCellType <- sapply(split(rownames(cellInfo), cellInfo$clusters
                                      function(cells) rowMeans(getAUC(regulonAUC)[,cells]))
 mat <- t(scale(t(regulonActivity_byCellType), center = T, scale=T))
 rownames(mat) <- gsub("_extended", "", rownames(mat))
-mat <- mat %>% as.data.frame() %>%  select(c("Naive", "StL", "ActEx", "Int", "SL")) %>% as.matrix()
+mat <- mat %>% as.data.frame() %>%  select(c("Naive", "StL", "ActEx", "Int", "SenL")) %>% as.matrix()
 cols <- pal_ident[seq_along(levels(CD8$clusters2))]
-cols <- setNames(cols, c("Naive", "StL", "Int", "ActEx", "SL"))
+cols <- setNames(cols, c("Naive", "StL", "Int", "ActEx", "SenL"))
 row_anno <- rowAnnotation(
-  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "Int", "SL")),
+  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "Int", "SenL")),
   col = list(cluster_id = cols, gp = gpar(col = "white")),
   annotation_name_gp = gpar(fontsize = 0))
 lgd_aes <- list(direction = "vertical", legend_width = unit(2.2, "cm"),
