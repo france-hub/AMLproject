@@ -537,8 +537,8 @@ p.ann & NoLegend()
 dev.off()
 
 #Save Fig. 3E
-tiff("../plots_CD8/UMAP_groupId.tiff", width = 5*300, height = 5*600, res = 300, pointsize = 5)     
-p.abund <- DimPlot_scCustom(CD8, label = TRUE, split.by = "group_id", colors_use = pal_ident, split_seurat = TRUE, label.size = 6, num_columns = 1) + 
+tiff("../plots_CD8/UMAP_groupId.tiff", width = 5*600, height = 5*300, res = 300, pointsize = 5)     
+p.abund <- DimPlot_scCustom(CD8, label = TRUE, split.by = "group_id", colors_use = pal_ident, split_seurat = TRUE, label.size = 6, num_columns = 3, repel = T) + 
   theme_minimal(base_size = 35) + 
   theme(panel.grid = element_blank(),
         panel.border = element_blank(),
@@ -772,7 +772,7 @@ p.perm2 <- permutation_plot(prop_test_R.postVSNR.post, log2FD_threshold = log2(2
 p.perm_R_NR <- plot_grid(p.perm1, p.perm2, rel_widths = c(1,1.9), nrow = 1)
 
 #Save Fig. 3G
-tiff("../plots_CD8/sigPerm.tiff", width = 5*300, height = 5*200, res = 150, pointsize = 5)     
+tiff("../plots_CD8/sigPerm.tiff", width = 5*220, height = 5*50, res = 150, pointsize = 5)     
 p.perm_R_NR
 dev.off()
 
@@ -801,22 +801,22 @@ prop_test_NR.postVSHD <- permutation_test(
 )
 
 p.perm3 <- permutation_plot(prop_test_R.basVSHD, log2FD_threshold = log2(2)) + 
-  ggtitle("Res_bas VS HD") + 
+  ggtitle("") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
 p.perm4 <- permutation_plot(prop_test_NR.basVSHD, log2FD_threshold = log2(2))+
-  ggtitle("NonRes_bas VS HD") + 
+  ggtitle("") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue")) +  theme(legend.position="none")
 p.perm5 <- permutation_plot(prop_test_R.postVSHD, log2FD_threshold = log2(2)) + 
-  ggtitle("Res_post VS HD") + 
+  ggtitle("") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue")) + theme(legend.position="none")
 p.perm6 <- permutation_plot(prop_test_NR.postVSHD, log2FD_threshold = log2(2)) + 
-  ggtitle("HD VS NonRes") + 
+  ggtitle("") + 
   theme(plot.title = element_text(hjust = 0.5)) +
   theme(plot.title = element_text(face = "bold")) +
   scale_color_manual(values = c("red", "blue"))
@@ -828,7 +828,7 @@ p.perm6 <- p.perm6 + theme(legend.position="none")
 p.perm_HD.Resp <- plot_grid(p.perm3, p.perm4, p.perm5, p.perm6, nrow = 2)
 
 #Save Fig. S6
-tiff("../plots_CD8/permHD_resp.tiff", width = 5*300, height = 5*60, res = 150, pointsize = 5)     
+tiff("../plots_CD8/permHD_resp.tiff", width = 5*300, height = 5*150, res = 150, pointsize = 5)     
 p.perm_HD.Resp + legend
 dev.off()
 
@@ -854,7 +854,7 @@ df.anova <- df.anova %>% set_colnames(c("HD", "NonRes", "Res", "Fstat", "p.value
 fqs <- props$Proportions
 df.plot <- set_colnames(reshape2::melt(fqs), c("cluster_id", "sample_id", "frequency"))
 df.plot$group_id <- CD8$group_id[match(df.plot$sample_id, CD8$sample_id)]
-df.plot <- df.plot %>% dplyr::mutate(positions = case_when(cluster_id == "StL" ~ "Anova: FDR ***, F 43.271719", TRUE ~ ""))
+df.plot <- df.plot %>% dplyr::mutate(positions = case_when(cluster_id == "StL" ~ "***", TRUE ~ ""))
 tiff("../plots_CD8/boxAnova.tiff", width = 5*400, height = 5*120, res = 300, pointsize = 5)     
 pal_box <- pal_ident[c(10, 14, 35)]
 p.box <- ggplot(df.plot, aes(x = group_id, y = frequency, fill = group_id)) +
@@ -869,7 +869,7 @@ p.box <- ggplot(df.plot, aes(x = group_id, y = frequency, fill = group_id)) +
     axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
     legend.key.height  =  unit(0.8, "lines")) +
   facet_wrap(~ cluster_id, scales = "free_y", nrow = 1) + theme(legend.position = "none")
-p.box + geom_text(aes(x=1.9,y=0.45,label=positions), size = 1.6)
+p.box + geom_text(aes(x=1.9,y=0.42,label=positions), size = 4)
 dev.off()
 
 #CNA (Res vs NonRes)
@@ -1020,13 +1020,6 @@ sce.gam <- fitGAM(counts = counts(sceCD8), sds = sds, nknots = 5, verbose = TRUE
 #saveRDS(sce.gam, "scegam.rds")
 #sce.gam <- readRDS("scegam.rds")
 
-# plot our Slingshot lineage trajectories, this time illustrating the new tradeSeq knots
-tiff("./plots/traj.tiff", width = 5*500, height = 5*300, res = 300, pointsize = 5)     
-plotGeneCount(curve = sds, counts = counts,
-              clusters = CD8@active.ident,
-              models = sce.gam)
-dev.off()
-
 ### Discovering differentiated cell type markers
 # discover marker genes for the differentiated cell types
 #Genes with different expression patterns (most interesting part)
@@ -1047,7 +1040,11 @@ p.gzmk <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oP
         axis.line = element_blank(),
         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) 
 
-legend <- cowplot::get_legend(p.leg + theme(legend.position = "right"))
+legend <- cowplot::get_legend(plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][1]) +
+                                scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx"))+
+                                theme(legend.position = "right",
+                                      legend.title = element_text(size=18),
+                                      legend.text = element_text(size=15)))
 
 p.prf1 <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][5], xlab = "", ylab = "") + 
   scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
@@ -1141,7 +1138,7 @@ genes_int <- c("GZMK", "PRF1", "GZMB", "FGFBP2", "GNLY", "CTSW", "CD69", "NKG7",
                "CCR7", "LDHA", "KLRB1", "CCL4", "CX3CR1", "LEF1", "ADGRG1", "CCL3",
                "TIGIT", "FCRL6", "XCL1", "FCGR3A", "GZMM", "ZEB2")
 
-heat.SenL <- Heatmap(mat.SenL[1:100,],
+heat.SenL <- Heatmap(mat.SenL,
                    show_column_names = FALSE,
                    row_names_gp = grid::gpar(fontsize = 0),
                    cluster_columns = FALSE,
@@ -1154,29 +1151,43 @@ mat.ae <- mat.ae %>% filter(!str_detect(rownames(mat.ae), "^RP[SL]|^MT-")) %>%
   as.data.frame.matrix()
 mat.ae <- t(scale(t(mat.ae)))
 
-position <- which(rownames(mat.ae) %in% genes_int)
-row_an.ae <- rowAnnotation(Genes = anno_mark(at = which(rownames(mat.ae) %in% genes_int),
-                                             labels = rownames(mat.ae)[position],
-                                             labels_gp = gpar(fontsize = 7),
-                                             link_width = unit(2.5, "mm"),
-                                             padding = unit(1, "mm"),
-                                             link_gp = gpar(lwd = 0.5)))
+#Look at genes postions
+#position <- which(rownames(mat.ae) %in% genes_int)
+#row_an.ae <- rowAnnotation(Genes = anno_mark(at = which(rownames(mat.ae) %in% genes_int),
+                                             #labels = rownames(mat.ae)[position],
+                                             #labels_gp = gpar(fontsize = 15),
+                                             #link_width = unit(2.5, "mm"),
+                                             #padding = unit(1, "mm"),
+                                             #link_gp = gpar(lwd = 0.5)))
 
 
-lgd_aes <- list(legend_width = unit(2.2, "cm"),
+graphics = list(
+  "Naive/StL" = function(x, y, w, h) {
+    grid.points(x, y, gp = gpar(col = "darkviolet"), pch = 16, size = unit(2, "char"))
+  },
+  "ActEx" = function(x, y, w, h) {
+    grid.points(x, y, gp = gpar(col = pal_ident[4]), pch = 16, size = unit(2, "char"))
+  },
+  "SenL" = function(x, y, w, h) {
+    grid.points(x, y, gp = gpar(col = pal_ident[3]), pch = 16, size = unit(2, "char"))
+  }
+)
+lgd = Legend(title = "", at = names(graphics), graphics = graphics)
+
+lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
                 title = "Expression")
-
-heat.ae <- Heatmap(mat.ae[1:100,],
+heat.ae <- Heatmap(mat.ae,
                    show_column_names = FALSE,
-                   row_names_gp = grid::gpar(fontsize = 0),
-                   right_annotation = row_an.ae,
+                   #right_annotation = row_an.ae,
                    cluster_columns = FALSE,
                    cluster_rows = T,
+                   row_names_gp = grid::gpar(col = colLab, fontsize = 13),
                    column_title = "ActEx",
                    heatmap_legend_param = lgd_aes)
+
 #Save Fig. 5C
-tiff("../plots_CD8/heatTraj.tiff", width = 5*350, height = 5*400, res = 300, pointsize = 5)     
-heat.SenL + heat.ae 
+tiff("../plots_CD8/heatTraj2.tiff", width = 5*250, height = 5*180, res = 300, pointsize = 5)     
+draw(ht,  heatmap_legend_side = "bottom", annotation_legend_list = lgd)
 dev.off()
 
 ###################################################################
@@ -1269,7 +1280,7 @@ data_SenLvStL <- topTable(fit_SenLvStL, coef = 'test', number = 50) %>%
 # plot t-value
 SenLVSstl <- ggplot(data = data_SenLvStL, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
-  geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = "grey80") +
+  geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = "black") +
   geom_text(
     aes(
       x = gene_set,
@@ -1342,7 +1353,7 @@ data_SenLvActEx <- topTable(fit_SenLvActEx, coef = 'test', number = 50) %>%
 # plot t-value
 SenLVSActEx <- ggplot(data = data_SenLvActEx, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
-  geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = 'grey80') +
+  geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = 'black') +
   geom_text(
     aes(
       x = gene_set,
@@ -1416,7 +1427,7 @@ data_ActExvStL <- topTable(fit_ActExvStL, coef = 'test', number = 50) %>%
 # plot t-value
 ActExvStL <- ggplot(data = data_ActExvStL, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
-  geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = 'grey80') +
+  geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = 'black') +
   geom_text(
     aes(
       x = gene_set,
@@ -1469,9 +1480,10 @@ activities <- decoupleR::run_wmean(mat = as.matrix(CD8@assays[["RNA"]]@data),
                                    minsize = 5)
 
 # General heatmap.
-out <- SCpubr::do_PathwayActivityPlot(sample = CD8,
+out <- do_PathwayActivityPlot(sample = CD8,
                                       activities = activities,
-                                      split.by = "group_id")
+                                      split.by = "group_id",
+                                      font.size = 18)
 p.patHeat <- out$heatmaps$average_scores
 
 #Save Fig. 4D
@@ -1503,11 +1515,12 @@ DimPlot_scCustom(CD8.clono, group.by = "Clonal_expansion", pt.size = 0.01, order
 dev.off()
 
 #Save Fig. 6B
-tiff("../plots_CD8/clonoContour.tiff", width = 5*350, height = 5*250, res = 300, pointsize = 5)     
+tiff("../plots_CD8/clonoContour.tiff", width = 5*350, height = 5*180, res = 300, pointsize = 5)     
 p <- clonalOverlay(CD8.clono, reduction = "umap", 
-                   freq.cutpoint = 20, bins = 25, facet = "group_id") + 
-  guides(color = FALSE) 
-p + theme_void(base_size = 20) + scale_color_manual(values=pal_ident)
+                   freq.cutpoint = 20, bins = 25, facet = "group_id")
+p + theme_void(base_size = 20) + scale_color_manual(values=pal_ident) + 
+  theme(legend.title=element_blank()) +
+  guides(colour = guide_legend(override.aes = list(size=10)))
 dev.off()
 
 md$cloneType <- ifelse(md$cloneType == "Single (0 < X <= 1)", "Not Expanded", md$cloneType) %>% as.factor() 
@@ -1517,7 +1530,7 @@ md$cloneType <- factor(md$cloneType, lev[c(1:3,5,4)])
 CD8.clono@meta.data <- md
 
 #Save Fig. 6C
-tiff("../plots_CD8/occrep.tiff", width = 5*430, height = 5*80, res = 300, pointsize = 5)     
+tiff("../plots_CD8/occrep.tiff", width = 5*500, height = 5*100, res = 300, pointsize = 5)     
 occupiedscRepertoire(CD8.clono, x.axis = "clusters", facet.by = 'RespTmp',label = FALSE)
 dev.off()
 
@@ -1541,7 +1554,7 @@ thsld <- getOutliersI(vls, distribution = "normal")$sigma
 md <- CD8.clono@meta.data
 md <- md %>% mutate(Ag_specific = (case_when(md$sig_agsp1 > thsld ~ "AgSp",
                                              TRUE ~ "No_AgSp"))) %>%
-  mutate(Expanded = case_when(cloneType == "Not Expanded (0 < X <= 1)" ~ "Not_Exp",
+  mutate(Expanded = case_when(cloneType == "Not Expanded" ~ "Not_Exp",
                               TRUE ~ "Exp"))
 CD8.clono@meta.data <- md
 df1 <- as.data.frame.matrix(table(CD8.clono$clusters, CD8.clono$Ag_specific))
@@ -1639,8 +1652,9 @@ tran <- table.div %>% filter(variable == "tran")
 shapiro.test(tran$value)#not normal
 kruskal.test(value ~ majorCluster, data = tran)
 
+
 p.tran <- ggplot(tran, aes(x=majorCluster, y=value)) +
-  geom_boxplot(aes(fill = majorCluster), outlier.alpha = 0) + scale_fill_manual(values= pal_ident[c(4,1,3,5,2)]) +
+  geom_boxplot(aes(fill = majorCluster), outlier.alpha = 0) + scale_fill_manual(values= pal_ident[c(4,3,1,5,2)]) +
   theme_classic() +
   ylab("Tran score") +
   guides(fill="none") +
@@ -1653,7 +1667,7 @@ shapiro.test(exp$value) #not normal
 kruskal.test(value ~ majorCluster, data = exp)
 
 p.exp <- ggplot(exp, aes(x=majorCluster, y=value)) +
-  geom_boxplot(aes(fill = majorCluster), outlier.alpha = 0) + scale_fill_manual(values= pal_ident[c(4,1,3,5,2)]) +
+  geom_boxplot(aes(fill = majorCluster), outlier.alpha = 0) + scale_fill_manual(values= pal_ident[c(4,3,1,5,2)]) +
   theme_classic() +
   ylab("Exp score") +
   guides(fill="none") +
@@ -1670,7 +1684,7 @@ DefaultAssay(CD8) <- "RNA"
 #DGE SenL vs. Int
 mark.SenL_Int <- FindMarkers(CD8, ident.1 = "Int", ident.2 = "SenL")
 
-tiff("../plots_CD8/volc.tiff", width = 5*250, height = 5*150, res = 150, pointsize = 5)     
+tiff("../plots_CD8/volc2.tiff", width = 5*150, height = 5*150, res = 150, pointsize = 5)     
 EnhancedVolcano(mark.SenL_Int, 
                 lab = rownames(mark.SenL_Int),
                 selectLab = c("KLRC3", "TIGIT", "CD74", "CMC1",
@@ -1689,9 +1703,11 @@ EnhancedVolcano(mark.SenL_Int,
                 cutoffLineCol = "white",
                 gridlines.major = FALSE,
                 gridlines.minor = FALSE,
-                xlim = c(-4,4)) + coord_flip() +
+                xlim = c(-4,4),
+                drawConnectors = TRUE,
+                max.overlaps = Inf) + coord_flip() +
   geom_label(aes(x = 3, y = 0, label = "Int"), fill ="#009E73") +
-  geom_label(aes(x = -3, y = 0, label = "SenL"), fill ="#0072B2") 
+  geom_label(aes(x = -3, y = 2, label = "SenL"), fill ="#0072B2")
 dev.off()
 
 
