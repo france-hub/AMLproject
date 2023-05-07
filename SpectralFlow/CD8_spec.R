@@ -61,6 +61,7 @@ suppressPackageStartupMessages({
   library(scCustomize)
   library(patchwork)
   library(tidyverse)
+  library(data.table)
 })
 
 ##########################################################################################################
@@ -226,7 +227,7 @@ dev.off()
 #Read annotation file
 annotation_table <- readxl::read_excel("annotation.xlsx")
 annotation_table$new_cluster <- factor(annotation_table$new_cluster, levels = c("Naive",
-                                                                                "StL","SL", "ActEx",  "Int"))
+                                                                                "StL","SenL", "ActEx",  "Int"))
 
 #Apply manual annotation
 sce <- mergeClusters(sce, k = "meta8", 
@@ -251,8 +252,7 @@ Int <- df %>% select(Int) %>% rownames_to_column()
 writexl::write_xlsx(Int, "Express_int.xlsx")
 
 #Plot UMAP
-tiff("./WorkingDirectory/umap_cond.tiff", width = 5*900, height = 5*900, res = 300, pointsize = 5)     
-p <- plotDR(sce, "UMAP", color_by = "cluster_annotation", facet_by = "condition") +
+p <- plotDR(sce, "UMAP", color_by = "cluster_annotation2", facet_by = "condition") +
   guides(color = guide_legend(ncol = 1, override.aes = list(size = 10))) + 
   geom_density2d(binwidth = 0.006, colour = "black") +  
   xlab("UMAP_1") + ylab("UMAP_2") +
@@ -287,15 +287,34 @@ p.list <- lapply(seq_along(p.list), function(x) p.list[[x]] +
                      inherit.aes = FALSE,
                      fill = NA,
                      label.size = NA,
-                     size = 10) + ggtitle(titles[[x]]) +
-                   theme(plot.title = element_text(size = 27, hjust = 0.5, face = "bold"))) 
-
+                     size = 20) + ggtitle(titles[[x]]) +
+                   theme(plot.title = element_text(size = 70, hjust = 0.5, face = "bold"))) 
 
 #Save Fig. 7C
-tiff("./umap_AML.tiff", width = 5*800, height = 5*800, res = 300, pointsize = 5)     
+tiff("./umap_AML.tiff", width = 5*900, height = 5*900, res = 300, pointsize = 5)     
 plot_grid(p.list[[1]], p.list[[3]], p.list[[2]], p.list[[4]], nrow = 2)
 dev.off()
 
+#Plot boxplot
+p <- plotAbundances(sce, k = "cluster_annotation", by = "cluster_id")
+pal_box <- pal_ident[c(6,19, 14, 35)]
+p.box <- ggplot(p$data, aes(x = condition, y = Freq, fill = condition)) +
+  labs(x = NULL, y = "Proportion [%]") + 
+  geom_boxplot() + scale_fill_manual(values= pal_box) +
+  geom_point(aes_string(x = "condition"), position = position_jitter(width = 0.2)) +
+  theme_bw() + theme(
+    panel.grid = element_blank(),
+    strip.text = element_text(face = "bold", size = 10),
+    strip.background = element_rect(fill = NA, color = NA),
+    axis.text = element_text(color = "black"),
+    axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10),
+    legend.key.height  =  unit(0.8, "lines")) +
+  facet_wrap(~ cluster_id, scales = "free_y", nrow = 1) + theme(legend.position = "none")
+
+#Save Fig. S14
+tiff("./WorkingDirectory/box20.tiff", width = 5*400, height = 5*180, res = 300, pointsize = 5)     
+p.box
+dev.off()
 
 ########################
 #D Trajectory inference
@@ -340,88 +359,84 @@ pal_ident <- DiscretePalette_scCustomize(num_colors = 40, palette = "ditto_seq")
 
 p1.pca <- ggplot(df, aes(x = PCA_1, y = PCA_2)) +
   guides(color = guide_legend(ncol = 1, override.aes = list(size = 10))) +
-  geom_point(size = 0.0000001, aes(col = clusters)) +
+  geom_point(size = 0.0000001, aes(col = clusters), show.legend = FALSE) +
   scale_colour_manual(values = pal_ident) +
   labs(col = "") +
   geom_path(data = curves %>% arrange(Order),
             aes(group = Lineage), col = "black",  arrow = arrow(), lineend = "round", size = 1.5) +
-  annotate("text", x = 680, y = 600, label = "SL", size = 5) +
+  annotate("text", x = 680, y = 600, label = "SenL", size = 5) +
   annotate("text", x = 30, y = 20, label = "ActEx", size = 5) +
   guides(color = guide_legend(ncol = 2, override.aes = list(size = 10))) +
   theme(strip.text = element_text(size=40), axis.text=element_text(size=12),
-        axis.title=element_text(size=25)) + 
-  theme(legend.text=element_text(size=30)) + 
-  guides(color = guide_legend(override.aes = list(size = 10))) + 
+        axis.title=element_text(size=25)) +
   theme_classic()
 
 p2.pca <- ggplot(df, aes(x = PCA_1, y = PCA_3)) +
   guides(color = guide_legend(ncol = 1, override.aes = list(size = 10))) +
-  geom_point(size = 0.0000001, aes(col = clusters)) +
+  geom_point(size = 0.0000001, aes(col = clusters), show.legend = FALSE) +
   scale_colour_manual(values = pal_ident) +
   labs(col = "") +
   geom_path(data = curves %>% arrange(Order),
             aes(group = Lineage), col = "black",  arrow = arrow(), lineend = "round", size = 1.5) +
-  annotate("text", x = 550, y = 500, label = "SL", size = 5) +
+  annotate("text", x = 550, y = 500, label = "SenL", size = 5) +
   annotate("text", x = 30, y = -600, label = "ActEx", size = 5) +
   guides(color = guide_legend(ncol = 2, override.aes = list(size = 10))) +
   theme(strip.text = element_text(size=40), axis.text=element_text(size=12),
-        axis.title=element_text(size=25)) + 
-  theme(legend.text=element_text(size=40)) + 
-  guides(color = guide_legend(override.aes = list(size = 10))) + 
+        axis.title=element_text(size=25)) +
   theme_classic()
 
 p3.pca <- ggplot(df, aes(x = PCA_2, y = PCA_3)) +
   guides(color = guide_legend(ncol = 1, override.aes = list(size = 10))) +
-  geom_point(size = 0.0000001, aes(col = clusters)) +
+  geom_point(size = 0.0000001, aes(col = clusters), show.legend = FALSE) +
   scale_colour_manual(values = pal_ident) +
   labs(col = "") +
   geom_path(data = curves %>% arrange(Order),
             aes(group = Lineage), col = "black",  arrow = arrow(), lineend = "round", size = 1.5) +
-  annotate("text", x = 500, y = 450, label = "SL", size = 5) +
+  annotate("text", x = 500, y = 450, label = "SenL", size = 5) +
   annotate("text", x = 30, y =-550, label = "ActEx", size = 5) +
   guides(color = guide_legend(ncol = 2, override.aes = list(size = 10))) +
   theme(strip.text = element_text(size=40), axis.text=element_text(size=12),
-        axis.title=element_text(size=25)) + 
-  theme(legend.text=element_text(size=30)) + 
-  guides(color = guide_legend(override.aes = list(size = 10))) + 
+        axis.title=element_text(size=25)) +
   theme_classic()
 
-p.pca.traj <- cowplot::plot_grid(pca.pseudo, p1.pca, p2.pca, p3.pca, ncol = 2)
+p.pca.traj <- cowplot::plot_grid(p1.pca, p2.pca, p3.pca, ncol = 3)
 
 #Save Fig. 7D
-tiff("./WorkingDirectory/p.pca.traj.tiff", width = 5*200, height = 5*100, res = 150, pointsize = 5)     
+tiff("./WorkingDirectory/p.pca.traj.tiff", width = 5*220, height = 5*80, res = 150, pointsize = 5)     
 p.pca.traj 
 dev.off()
 
 #3) Visualize subsets distribution along PT (jitter plot)
 p.jitt1 <- ggplot(df, 
                   aes(x = Lineage1_pst, 
-                      y = clusters, colour = clusters)) + geom_jitter(size = 0.0000001) +
-  guides(color = guide_legend(override.aes = list(size = 10))) +
+                      y = clusters, colour = clusters)) + geom_jitter(size = 0.0000001, show.legend = FALSE) +
   scale_colour_manual(values = pal_ident) +
   theme_classic() +
-  xlab("Pseudotime (SL)") +
-  ylab("") + labs(col = "") +theme(legend.text=element_text(size=15))
+  xlab("Pseudotime (SenL)") +
+  ylab("") + labs(col = "") +theme(legend.text=element_text(size=15),
+                                   axis.text = element_text(size = 15))
 
 
 p.jitt2 <- ggplot(df, 
                   aes(x = Lineage2_pst, 
                       y = clusters, colour = clusters)) + geom_jitter(size = 0.0000001) +
-  guides(color = guide_legend(override.aes = list(size = 10))) +
+  guides(color = guide_legend(override.aes = list(size = 7))) +
   scale_colour_manual(values = pal_ident) +
   theme_classic() +
   xlab("Pseudotime (ActEx)") +
-  ylab("") + labs(col = "") + theme(legend.text=element_text(size=15))
+  ylab("") + labs(col = "") + theme(legend.text=element_text(size=15),
+                                    axis.text.y = element_text(size = 15),
+                                    axis.title.x = element_text(size = 15))
 
 #Save Fig. 7E
-tiff("./WorkingDirectory/jitt.tiff", width = 5*300, height = 5*100, res = 150, pointsize = 5)     
-cowplot::plot_grid(p.jitt1, p.jitt2)
+tiff("./WorkingDirectory/jitt.tiff", width = 5*180, height = 5*80, res = 150, pointsize = 5)     
+cowplot::plot_grid(p.jitt1, p.jitt2, rel_widths = c(0.7,1.1))
 dev.off()
 
 #4) Use UMAP as dimensionality reduction algorithm and run Slingshot
 sce_sling <- filterSCE(sce, complete.cases(reducedDim(sce, "UMAP"))) #remove NA
 #Prepare clusterLabels
-clusters <- sce_sling$cluster_annotation
+clusters <- sce_sling$cluster_id
 levels(clusters) <- cluster_codes(sce_sling)$cluster_annotation
 #Run slingshot
 sds <- slingshot(sce_sling, reducedDim = "UMAP", clusterLabels = clusters, 
@@ -445,28 +460,11 @@ umap.traj <- ggplot(df.umap, aes(x = UMAP_1, y = UMAP_2)) +
   geom_path(data = curves %>% arrange(Order),
             aes(group = Lineage), col = "black",  arrow = arrow(), lineend = "round", size = 1.5) +
   annotate("text", x = 6, y = 8, label = "ActEx", size = 5) +
-  annotate("text", x = 6, y = -7, label = "SL", size = 5) +
+  annotate("text", x = 6, y = -7, label = "SenL", size = 5) +
   theme(legend.position = c(.15, .35),
         legend.background = element_blank()) +  theme_void()  
 
-umap.traj.ann <- ggplot(df.umap, aes(x = UMAP_1, y = UMAP_2)) +
-  geom_point(size = 0.0000001, aes(col = clusters)) +
-  scale_colour_manual(values = pal_ident) +
-  labs(col = "") +
-  geom_path(data = curves %>% arrange(Order),
-            aes(group = Lineage), col = "black",  arrow = arrow(), lineend = "round", size = 1.5) +
-  annotate("text", x = 6, y = 8, label = "ActEx", size = 5) +
-  annotate("text", x = 6, y = -7, label = "SL", size = 5) +
-  guides(color = guide_legend(ncol = 2, override.aes = list(size = 10))) +
-  theme(strip.text = element_text(size=40), axis.text=element_text(size=12),
-        axis.title=element_text(size=25)) + 
-  theme(legend.text=element_text(size=30)) + 
-  guides(color = guide_legend(override.aes = list(size = 10))) + 
-  theme_void()
-
-p.traj <- cowplot::plot_grid(umap.traj, umap.traj.ann, ncol = 1)
-
 #Save Fig. 7E
-tiff("./WorkingDirectory/umapTraj.tiff", width = 5*100, height = 5*150, res = 150, pointsize = 5)     
-p.traj + labs(x = "UMAP_1", y = "UMAP_2")
+tiff("./WorkingDirectory/umapTraj.tiff", width = 5*150, height = 5*80, res = 150, pointsize = 5)     
+umap.traj
 dev.off()

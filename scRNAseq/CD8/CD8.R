@@ -933,7 +933,7 @@ p.SenL <- FeaturePlot(CD8.cna, "sig_SenL1", pt.size = 0.00001, order = T,  min.c
   NoAxes() + NoLegend() + ggtitle("SenL") + theme(plot.title = element_text(size = 10, face = "bold"))
 
 #Save Fig. S7
-tiff("../plots_CD8/p.featcustCNA.tiff", width = 5*210, height = 5*210, res = 300, pointsize = 5)     
+tiff("../plots_CD8/p.featcustCNA.tiff", width = 5*300, height = 5*300, res = 300, pointsize = 5)     
 p.sig <- plot_grid(p.naive, p.stl, p.actex, p.SenL, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
