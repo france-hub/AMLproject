@@ -531,15 +531,15 @@ CD8$clusters<- CD8@active.ident
 
 #1) Plot and look at clusters proportions and densities across samples, between conditions (group_id)
 #Save Fig. 3A
-tiff("../plots_CD8/UMAP_ann.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
+tiff("../plots_CD8/UMAP_ann.tiff", width = 5*150, height = 5*150, res = 300, pointsize = 5)     
 p.ann <- DimPlot_scCustom(CD8, label = TRUE, label.size = 4, colors_use = pal_ident[1:4], pt.size = 0.00001, figure_plot = T) + NoLegend()
 p.ann & NoLegend()
 dev.off()
 
 #Save Fig. 3E
-tiff("../plots_CD8/UMAP_groupId.tiff", width = 5*600, height = 5*300, res = 300, pointsize = 5)     
+tiff("../plots_CD8/UMAP_groupId.tiff", width = 5*500, height = 5*250, res = 300, pointsize = 5)     
 p.abund <- DimPlot_scCustom(CD8, label = TRUE, split.by = "group_id", colors_use = pal_ident, split_seurat = TRUE, label.size = 6, num_columns = 3, repel = T) + 
-  theme_minimal(base_size = 35) + 
+  theme_minimal(base_size = 30) + 
   theme(panel.grid = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank()) +
@@ -619,6 +619,7 @@ dev.off()
 ##Combine custom with top10 markers
 #DGE all markers
 mark <- FindAllMarkers(CD8)
+#mark <- readRDS("markCD8.rds")
 
 #top10
 mark %>% dplyr::filter(!str_detect(rownames(mark), "^RP[SL]")) %>% 
@@ -630,7 +631,7 @@ df <- df %>% distinct(top10.gene, .keep_all = TRUE)
 df  <-  reshape(transform(df, indx = ave(as.character(top10.cluster), top10.cluster, FUN = seq)), 
                 idvar = "indx", timevar = "top10.cluster", direction = "wide") 
 colnames(df) <- gsub("top10.gene.", "", colnames(df))
-df <- df %>% relocate(SenL, .after = ActEx)
+df <- df %>% relocate(SL, .after = ActEx)
 
 all_markers <- df %>%
   select(-indx) 
@@ -642,8 +643,8 @@ for(i in seq_along(cust_mark)){
 
 #check for duplicates in subsets
 names(which(table(unlist(comb_mark)) > 1)) #CX3CR1
-lapply(comb_mark, function(x) grep("CX3CR1", x))
-comb_mark$StL <- comb_mark$StL[-11] #remove duplicate
+#lapply(comb_mark, function(x) grep("CX3CR1", x))
+#comb_mark$StL <- comb_mark$StL[-11] #remove duplicate
 
 idx <- which(unlist(comb_mark) %in% unlist(all_markers)) #to use after to color genes
 
@@ -677,38 +678,38 @@ mat <- mat %>% as.data.frame() %>%  select(names(comb_mark)) %>% as.matrix()
 
 cols <- pal_ident[seq_along(levels(CD8$clusters))]
 cols <- setNames(cols, levels(CD8$clusters))
-col_anno <- HeatmapAnnotation(
+row_anno <- rowAnnotation(
   df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SenL")),
   col = list(cluster_id = cols, gp = gpar(col = "white")), 
   show_legend = c(FALSE, TRUE)) 
 graphics = list(
   "Top10 genes" = function(x, y, w, h) {
-    grid.points(x, y, gp = gpar(col = "darkgreen"), pch = 16)
+    grid.points(x, y, gp = gpar(col = "darkgreen"), pch = 16,size = unit(2, "char"))
   },
   "Custom genes" = function(x, y, w, h) {
-    grid.points(x, y, gp = gpar(col = "darkviolet"), pch = 16)
+    grid.points(x, y, gp = gpar(col = "darkviolet"), pch = 16,size = unit(2, "char"))
   }
 )
-lgd = Legend(title = "", at = names(graphics), graphics = graphics)
+lgd <-  Legend(title = "", at = names(graphics), graphics = graphics)
 
-lgd_aes <- list(direction = "vertical", legend_width = unit(2.2, "cm"),
+lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
                 title = "Expression")
 
 colLab <- rep("darkviolet", nrow(mat)) 
 colLab[idx] <- "darkgreen"
 
-h.dge <- Heatmap(mat,
+h.dge <- Heatmap(t(mat),
                  cluster_rows = FALSE,
                  cluster_columns = FALSE,
                  row_names_side = "left",
-                 bottom_annotation = col_anno,
-                 row_names_gp = grid::gpar(col = colLab, fontsize = 8),
+                 left_annotation = row_anno,
+                 column_names_gp = grid::gpar(col = colLab, fontsize = 10),
                  heatmap_legend_param = lgd_aes,
-                 column_names_gp = gpar(fontsize = 14))
+                 row_names_gp = gpar(fontsize = 14))
 
 #Save Fig. 3B
-tiff("../plots_CD8/p.heat_combo.tiff", width = 5*250, height = 5*400, res = 300, pointsize = 5)     
-draw(h.dge,annotation_legend_list = lgd)
+tiff("../plots_CD8/p.heat_combo.tiff", width = 5*480, height = 5*160, res = 300, pointsize = 5)     
+draw(h.dge, merge_legend = TRUE, annotation_legend_list = lgd,  annotation_legend_side = "bottom", heatmap_legend_side = "bottom")
 dev.off()
 
 #plot scores
@@ -737,7 +738,7 @@ p.SenL <- FeaturePlot(CD8, "sig_SenL1", pt.size = 0.00001, order = T,  min.cutof
   NoAxes() + NoLegend() + ggtitle("SenL") + theme(plot.title = element_text(size = 10, face = "bold"))
 
 #Save Fig. S5
-tiff("../plots_CD8/p.featcust.tiff", width = 5*210, height = 5*210, res = 300, pointsize = 5)     
+tiff("../plots_CD8/p.featcust.tiff", width = 5*300, height = 5*300, res = 300, pointsize = 5)     
 p.sig <- plot_grid(p.naive, p.stl, p.actex, p.SenL, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
@@ -1181,13 +1182,13 @@ heat.ae <- Heatmap(mat.ae,
                    #right_annotation = row_an.ae,
                    cluster_columns = FALSE,
                    cluster_rows = T,
-                   row_names_gp = grid::gpar(col = colLab, fontsize = 13),
+                   row_names_gp = grid::gpar(col = "white", fontsize = 12),
                    column_title = "ActEx",
                    heatmap_legend_param = lgd_aes)
 
 #Save Fig. 5C
-tiff("../plots_CD8/heatTraj2.tiff", width = 5*250, height = 5*180, res = 300, pointsize = 5)     
-draw(ht,  heatmap_legend_side = "bottom", annotation_legend_list = lgd)
+tiff("../plots_CD8/heatTraj2.tiff", width = 5*270, height = 5*220, res = 300, pointsize = 5)     
+draw(heat.SenL + heat.ae,  heatmap_legend_side = "bottom", annotation_legend_list = lgd)
 dev.off()
 
 ###################################################################
@@ -1457,12 +1458,12 @@ ActExvStL <- ggplot(data = data_ActExvStL, aes(x = gene_set, y = t, fill = t)) +
 
 
 #Save Fig. 4E
-tiff("../plots_CD8/GSVA_plots.tiff", width = 5*830, height = 5*300, res = 300, pointsize = 5)     
+tiff("../plots_CD8/GSVA_plots.tiff", width = 5*830, height = 5*420, res = 300, pointsize = 5)     
 plot_grid(SenLVSstl, SenLVSActEx, nrow = 1)
 dev.off()
 
 #Save Fig. S10
-tiff("../plots_CD8/GSVA_plots2.tiff", width = 5*415, height = 5*300, res = 300, pointsize = 5)     
+tiff("../plots_CD8/GSVA_plots2.tiff", width = 5*415, height = 5*350, res = 300, pointsize = 5)     
 ActExvStL
 dev.off()
 
@@ -1741,7 +1742,7 @@ p.mar_leg <- plot_grid(p.markers, legend, ncol = 1, rel_heights = c(1, .1))
 p.mar_leg
 dev.off()
 
-tiff("../plots_CD8/p.Trm.vln.tiff", width = 5*300, height = 5*500, res = 300, pointsize = 5)     
+tiff("../plots_CD8/p.Trm.vln.tiff", width = 5*250, height = 5*250, res = 300, pointsize = 5)     
 Stacked_VlnPlot(CD8, features = c("CD69", "CXCR6", "ITGAE"), colors_use = pal_ident)
 dev.off()
 
@@ -1814,14 +1815,14 @@ df <- df %>% arrange(factor(clusters2, levels = c("Naive", "StL", "ActEx", "Int"
 df$clusters2 <- factor(df$clusters2, levels = c("Naive", "StL", "ActEx", "Int", "SenL")) 
 
 #Save Fig. S12B
-tiff("../plots_CD8/jitt.tiff", width = 5*100, height = 5*60, res = 150, pointsize = 5)     
+tiff("../plots_CD8/jitt.tiff", width = 5*150, height = 5*120, res = 150, pointsize = 5)     
 ggplot(df, 
        aes(x = latent_time, y = clusters2, colour = clusters2)) + geom_jitter(size = 0.0000001) +
   guides(color = guide_legend(override.aes = list(size = 6))) +
   scale_colour_manual(values = pal_ident[c(1,2,4,3,5)]) +
   theme_classic() +
   xlab("Latent Time") +
-  ylab("") + labs(col = "") +theme(legend.text=element_text(size=10))
+  ylab("") + labs(col = "") +theme(legend.text=element_text(size=12), axis.text.y = element_text(size=18))
 dev.off()
 
 ############
