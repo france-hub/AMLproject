@@ -62,7 +62,7 @@ C) Subclustering
 can be not enough senesitive to "gate" on CD4 (this was discussed a little bit here: https://github.com/carmonalab/scGate/issues/15)
 
 
-## CD8
+## CD8.R
 
 This script can be organized into 8 subsections (A-H)
 
@@ -109,3 +109,39 @@ H) SCENIC
 2) Run SCENIC workflow
 3) Use exportsForArboreto to export matrix and scenicOptions and analyze in Python using GRNBoost 
 4) Read in GRNBoost output from Python and proceed with the workflow
+
+## GRNboost.py
+## velocity.py
+
+# SpectralFlow
+
+## CD8_spec
+This script can be organized into 4 parts
+
+A)Define/create the directories where our files are located, transform the csv in fcs and create flowSet
+1) Define the directory where this script is located
+2) Define the directory where the csv files are located 
+NB: we are using pregated CD8+ csv files obtained with the flowJo csv channel values option and then transform them here 
+in fcs files so that we won't need to arcsinh transform the data as explained here https://wiki.centenary.org.au/display/SPECTRE/Data+transformation)
+3) Define and create the WorkingDirectory (here we'll save the plots) and the directory that will contain the fcs files
+4) Transform the csv in fcs, save and create the flowSet
+
+B) Prepare the data to create a single cell experiment (sce) using CATALYST
+1) Create panel dataframe
+2) Create metadata dataframe
+3) Visualize density plots and use warpSet to normalize 
+4) Create sce object
+
+C) Perform QC, clustering and dimensionality reduction
+1) Visualize CATALYST QC plots and remove Ki67 channel because of the very low NRS
+2) Run FlowSOM and ConsensusClusterPlus
+3) Run dimensionality reduction - PCA, UMAP and visualize
+4) Add annotations and visualize
+
+D) Trajectory inference
+1) Use PCA as dimensionality reduction algorithm and run Slingshot
+2) Visualize trajectories on first 3 PCs
+3) Visualize subsets distribution along PT (jitter plot)
+4) Use UMAP as dimensionality reduction algorithm and run Slingshot
+5) Visualize trajectories onto 2D UMAP
+
