@@ -2,6 +2,7 @@
 Type of data: flow cytometry, scRNAseq, spectral flow cytometry
 
 #AllCells
+
 This script includes 3 parts (Preprocessing, integration/batch correction and clonotype data addition, subclustering):
 
 A) Preprocessing
@@ -33,6 +34,7 @@ can be not enough senesitive to "gate" on CD4 (this was discussed a little bit h
 
 
 #CD8
+
 This script does the followings:
 1) Loads in the CD8 subset, find the most variable features, scale the data, run dimensionality reduction, run clustering
 2) Plots single genes and scores to identify different subsets
