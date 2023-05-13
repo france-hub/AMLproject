@@ -172,9 +172,9 @@ type_markers(sce) #visualize type markers
 sce$condition <- ifelse(sce$condition == "CR_base", "Res_bas", 
                         ifelse(sce$condition == "NR_base", "NonRes_bas", 
                                ifelse(sce$condition == "CR_post", "Res_post", "NonRes_post")))
-##############################
-#C) Perform QC and clustering
-##############################
+#######################################################
+#C) Perform QC, clustering and dimensionality reduction
+#######################################################
 #1) Visualize CATALYST QC plots and remove Ki67 channel because of the very low NRS
 n_cells(sce)
 plotCounts(sce, group_by = "sample_id", color_by = "condition")
@@ -204,6 +204,7 @@ plotExprHeatmap(sce, features = "type",
 dev.off()
 
 #3) Run dimensionality reduction - PCA, UMAP and visualize
+set.seed(1234)
 n_cells <- 3000
 n_events <- min(n_cells(sce))
 if(!(n_cells < n_events))
