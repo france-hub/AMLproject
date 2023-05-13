@@ -13,7 +13,6 @@
 #1) Plot and look at clusters proportions and densities across samples, between conditions (group_id)
 #2) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
 #3) DA analysis using permutation test, speckle (Anova) and CNA
-#4) Plot scores obtained combining top10 and custom markers onto 2D UMAP
 
 ##C) Compute trajectories to infer CD8+ cells differentiation path
 #1) Run Slingshot and plot the two trajectories
@@ -556,7 +555,7 @@ p.dens +  geom_density_2d_filled(p.dens$data, mapping = aes(x = p.dens$data[,"UM
   facet_wrap(vars(RespTmp), nrow = 1)
 dev.off()
 
-#3) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
+#2) Combine top10 and custom markers and plot them as heatmap and as scores with FeaturePlot
 #Custom Markers Heatmap
 DefaultAssay(CD8) <- "RNA"
 cust_mark <- list(
@@ -1682,7 +1681,7 @@ dev.off()
 
 DefaultAssay(CD8) <- "RNA"
 
-#DGE SenL vs. Int
+#3) DGE Int vs. SenL
 mark.SenL_Int <- FindMarkers(CD8, ident.1 = "Int", ident.2 = "SenL")
 
 tiff("../plots_CD8/volc2.tiff", width = 5*150, height = 5*150, res = 150, pointsize = 5)     
