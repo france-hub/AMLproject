@@ -1,8 +1,33 @@
 # AMLproject
-Type of data:  flow cytometry (Exploratory), scRNAseq, spectral flow cytometry
+Type of data:  flow cytometry and bulkRNA-seq (Exploratory), scRNAseq, spectral flow cytometry
 
 # Exploratory
+## EploratoryFlow
+CD8 This script can be divided into 3 parts
 
+A)Define/create the directories where our files are located, merge 2 experiments, perform Arcsinh transformation and create flowSet
+1) Define the directory where this script and the fcs files are located
+NB: we are using pregated CD8+ fcs files obtained with flowJo software
+2) Define workingDirectory and create the directory
+3) Create flowsets for the two experiments and merge the two flowsets
+4) Perform Arcsinh transformation (#Arcsinh transformation (this is necessary when you have flow citometry data in fcs format instead of csv) It is well explained here https://wiki.centenary.org.au/display/SPECTRE/Data+transformation, choose cofactors for each channel)
+5) Define the directory where the transformed files are located and save fcs
+6) Read the transformed files as flowset
+
+B) Prepare the data to create a single cell experiment (sce) using CATALYST
+1) Create panel dataframe
+2) Create metadata dataframe
+3) Create sce object
+
+C) Perform QC, clustering and dimensionality reduction
+1) Visualize CATALYST QC plots 
+2) Run FlowSOM and ConsensusClusterPlus
+3) Run dimensionality reduction (UMAP) and visualize
+4) Add annotations and visualize
+
+## DotPlot_GSEA
+
+This script plots gene signature enrichments from Zheng et al.
 
 # scRNAseq
 ## AllCells
