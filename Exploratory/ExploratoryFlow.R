@@ -1,16 +1,15 @@
 ##Exploratory flow: CD8 This script can be divided into 4 parts
 
 ##A)Define/create the directories where our files are located, merge 2 experiments, perform Arcsinh transformation and create flowSet
-#1) Define the directory where this script is located
-#2) Define the directory where the fcs files, for the two experiments, are located 
+#1) Define the directory where this script and the fcs files are located
 #NB: we are using pregated CD8+ fcs files obtained with flowJo software
-#3) Define workingDirectory and create the directory
-#4) Create flowsets for the two experiments and merge the two flowsets
-#5) Perform Arcsinh transformation (#Arcsinh transformation (this is necessary when you have flow citometry data in fcs format instead of csv)
+#2) Define workingDirectory and create the directory
+#3) Create flowsets for the two experiments and merge the two flowsets
+#4) Perform Arcsinh transformation (#Arcsinh transformation (this is necessary when you have flow citometry data in fcs format instead of csv)
 # It is well explained here https://wiki.centenary.org.au/display/SPECTRE/Data+transformation. 
 #choose cofactors for each channel)
-#6) Define the directory where the transformed files are located and save fcs
-#7) Read the transformed files as flowset
+#5) Define the directory where the transformed files are located and save fcs
+#6) Read the transformed files as flowset
 
 ##B) Prepare the data to create a single cell experiment (sce) using CATALYST
 #1) Create panel dataframe
@@ -18,21 +17,11 @@
 #3) Create sce object
 
 ##C) Perform QC, clustering and dimensionality reduction
-#1) Visualize CATALYST QC plots and remove Ki67 channel because of the very low NRS
+#1) Visualize CATALYST QC plots 
 #2) Run FlowSOM and ConsensusClusterPlus
-#3) Run dimensionality reduction - PCA, UMAP and visualize
+#3) Run dimensionality reduction (UMAP) and visualize
 #4) Add annotations and visualize
 
-##D) DA analysis using diffcyt
-#1) setup model formulas and contrast matrix
-#2) Run GLMM and plot
-
-##E) Trajectory inference
-#1) Use PCA as dimensionality reduction algorithm and run Slingshot
-#2) Visualize trajectories on first 3 PCs
-#3) Visualize subsets distribution along PT (jitter plot)
-#4) Use UMAP as dimensionality reduction algorithm and run Slingshot
-#5) Visualize trajectories onto 2D UMAP
 rm(list = ls())
 
 library(rstudioapi)
@@ -56,7 +45,7 @@ library(cowplot)
 #A)Define/create the directories where our files are located, merge 2 experiments, perform Arcsinh transformation and create flowSet
 #####################################################################################################################################
 
-#1) Define the directory where this script is located
+#1) Define the directory where this script and the fcs files are located
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 PrimaryDirectory <- getwd()
 PrimaryDirectory
@@ -69,12 +58,12 @@ fcs_2 <- "fcs_2"
 FCS2Directory <- paste(PrimaryDirectory, fcs_2, sep = "/")
 dir.create(FCS2Directory)
 
-#3) Define workingDirectory and create the directory
+#2) Define workingDirectory and create the directory
 wdName <- "Working_Directory"
 workingDirectory <- paste(PrimaryDirectory, wdName, sep = "/")
 dir.create(workingDirectory)
 
-#4) Create flowsets for the two experiments and merge the two flowsets
+#3) Create flowsets for the two experiments and merge the two flowsets
 #List FCSfiles_1
 FCSfiles_1 <- list.files(FCS1Directory, pattern = ".fcs$", full = FALSE)
 ## flowSet_1 
@@ -88,7 +77,7 @@ fs_2 <- read.flowSet(files = FCSfiles_2, path = FCS2Directory, truncate_max_rang
 ## flowSet merged 
 fs <- rbind2(fs_1, fs_2)
 
-#5) Perform Arcsinh transformation (#Arcsinh transformation (this is necessary when you have flow citometry data in fcs format instead of csv)
+#4) Perform Arcsinh transformation (#Arcsinh transformation (this is necessary when you have flow citometry data in fcs format instead of csv)
 cfs <- c(750, 2200, 2300, 800, 1000, 3200, 1500, 700, 1100, 1100, 600)
 #Rename the colnames with the markers corresponding to the fluorochrome (some of this channels, like FSC, SSC,.. are not of interest)
 #they do not need to be renamed
@@ -126,14 +115,14 @@ densityplot(~CD8, fs_fda)
 densityplot(~CD3, fs_fda)
 densityplot(~CCR7, fs_fda)
 
-#6) Define the directory where the transformed files are located and save fcs
+#5) Define the directory where the transformed files are located and save fcs
 if(!dir.exists('fcs_t')){dir.create("fcs_t", showWarnings = FALSE)}
 setwd("fcs_t")
 write.flowSet(fs_fda, outdir='fcs_t', filename = sampleNames(fs_fda))
 fcs_t <- "fcs_t"
 FCSDirectory <- paste(PrimaryDirectory, fcs_t, sep = "/")
 
-#7) Read the transformed files as flowset
+#6) Read the transformed files as flowset
 FCSfiles <- list.files(path = FCSDirectory, pattern = ".fcs", full.names= FALSE)
 fs <- read.flowSet(files = FCSfiles, path = FCSDirectory, transformation = FALSE, truncate_max_range = FALSE)
 
@@ -175,7 +164,7 @@ sce@assays@data$exprs <- sce@assays@data$counts
 #C) Perform QC, clustering and dimensionality reduction
 ########################################################
 
-#1) Visualize CATALYST QC plots and remove Ki67 channel because of the very low NRS
+#1) Visualize CATALYST QC plots
 # Density
 p <- plotExprs(sce, color_by = "condition")
 p$facet$params$ncol <- 4
@@ -210,7 +199,7 @@ plotExprHeatmap(sce, features = "type",
 #Filter out subset <1%
 sce <- filterSCE(sce, cluster_id %in% c(1:4,6), k = "meta7")
 
-#3) Run dimensionality reduction - PCA, UMAP and visualize
+#3) Run dimensionality reduction UMAP and visualize
 #Set parameters for UMAP
 set.seed(1234)
 n_cells <- 1000
@@ -336,5 +325,4 @@ tiff("./barplot.tiff", width = 5*200, height = 5*200, res = 300, pointsize = 5)
 barplot
 dev.off()
 
-saveRDS(sce, "sce.rds") #FROM HERE
-sce <- readRDS("sce.rds")
+saveRDS(sce, "sce.rds")
