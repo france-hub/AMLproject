@@ -1,4 +1,4 @@
-##Spectral flow: CD8 This script can be organized into n parts
+##Spectral flow: CD8 This script can be organized into 4 parts
 
 ##A)Define/create the directories where our files are located, transform the csv in fcs and create flowSet
 #1) Define the directory where this script is located
