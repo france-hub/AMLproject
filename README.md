@@ -111,7 +111,15 @@ H) SCENIC
 4) Read in GRNBoost output from Python and proceed with the workflow
 
 ## GRNboost.py
+This script uses the GRNBoost2 function to infer gene regulatory networks
+
 ## velocity.py
+This script
+
+1) loads the h5ad file obtained from the Seurat object in python as AnnData 
+2) performs RNA velocity using the scvelo: it uses scv.tl.recover_dynamics to recover the full dynamics and scv.tl.velocity to infer the velocity for each gene
+3) computes the velocity graph and the cell transitions predicted via the function scvelo.tl.velocity_graph 
+4) computes the latent time using scvelo.tl.latent_time and setting the Naive subset as the key of root cells to be used
 
 # SpectralFlow
 
