@@ -27,7 +27,7 @@ C) Perform QC, clustering and dimensionality reduction
 
 ## DotPlot_GSEA
 
-
+This script plots gene signature enrichments from Zheng et al.
 
 # scRNAseq
 ## AllCells
