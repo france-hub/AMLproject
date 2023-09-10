@@ -43,7 +43,6 @@
 #2) Run SCENIC workflow
 #3) Use exportsForArboreto to export matrix and scenicOptions and analyze in Python using GRNBoost 
 #4) Read in GRNBoost output from Python and proceed with the workflow
-
 rm(list = ls())
 
 library(Seurat)
@@ -98,8 +97,10 @@ library(doMC)
 library(doRNG)
 library(SCENIC)
 library(arrow)
+library(ProjecTILs)
 
 setwd("~/Documents/AML_project/scRNA_AMLproj/scripts")
+CD8 <- readRDS("CD8sub_test.rds")
 
 #######################################################################################################################
 #A) Subclustering and use of custom and published markers along with bulk-RNA seq results and DGE to annotate clusters
@@ -504,25 +505,87 @@ DefaultAssay(CD8) <- "RNA" #Put "RNA" as default assay
 
 #clean workspace
 rm(list=setdiff(ls(), "CD8"))
+DimPlot(CD8)
 
 #6) Annotate clusters
 CD8 <- RenameIdents(CD8,
-                    "0" = "Naive",
-                    "1" = "StL",
-                    "2" = "SenL",
-                    "3" = "ActEx",
-                    "4" = "SenL",
-                    "5" = "Naive", 
-                    "6" = "SenL", 
-                    "7" = "SenL", 
-                    "8" = "Naive",
-                    "9" = "SenL",
-                    "10" = "StL",
-                    "11" = "StL",
-                    "12" = "ActEx")
+                    "0" = "C1",
+                    "1" = "C2",
+                    "2" = "C4",
+                    "3" = "C3",
+                    "4" = "C4",
+                    "5" = "C1", 
+                    "6" = "C4", 
+                    "7" = "C4", 
+                    "8" = "C1",
+                    "9" = "C4",
+                    "10" = "C2",
+                    "11" = "C2",
+                    "12" = "C3")
+
+#Save UMAP plot
+tiff("../plots_CD8/UMAP_ann_C.tiff", width = 5*250, height = 5*250, res = 300, pointsize = 5)     
+DimPlot_scCustom(CD8, label = T, colors_use = pal_ident, label.box = TRUE, label.size = 6, figure_plot = TRUE) & NoLegend()
+dev.off()
 
 #Add clusters variable to mddata
 CD8$clusters<- CD8@active.ident
+CD8$cluster <- factor(CD8$clusters, levels = c("C1", "C2", "C3", "C4"))
+# Classify CD8 T subtypes
+ncores = 8
+ref.cd8 <- load.reference.map("CD8T_human_ref_v1.rds")
+
+query.CD8 <- ProjecTILs.classifier(CD8, ref.cd8, ncores = ncores)
+
+# Create a summary table
+summary_table <- table(query.CD8$functional.cluster, query.CD8$clusters)
+
+# Convert the summary table to a data frame
+summary_df <- as.data.frame(summary_table)
+
+# Normalize the frequency values to the range [0, 1]
+max_freq <- max(summary_df$Freq)
+summary_df$Freq_normalized <- summary_df$Freq / max_freq
+summary_df$Var1 <- factor(summary_df$Var1, levels = c("CD8.NaiveLike", "CD8.CM", "CD8.TEMRA", "CD8.EM", "CD8.TPEX", "CD8.TEX", "CD8.MAIT"))
+# Create the horizontal stacked bar plot with clusters on the y-axis
+stacked_bar_plot <- ggplot(data = summary_df, aes(x = Freq_normalized, y = Var2, fill = Var1)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_manual(
+    values = pal_ident
+  ) +
+  labs(
+    x = "",
+    y = "",
+    fill = "ProjecTILs States"
+  ) + theme_bw() +
+  theme(
+    axis.text.y = element_text(size = 16),  # Adjust font size
+    axis.text.x = element_text(size = 20),  # Adjust font size
+    legend.position = "right",
+    legend.title = element_text(size = 16),  
+    legend.text = element_text(size = 14), 
+    axis.ticks.x = element_line(
+      size = 1, 
+      lineend = "butt",  # Set line endings to "butt" # Custom colors
+    ),    
+    axis.line = element_blank(),
+    panel.grid = element_blank(),
+    panel.border = element_blank(),  # Remove background grid lines
+  ) +
+  scale_y_discrete(labels = c("C1", "C2", "C3", "C4")) +  # Switched to scale_y_discrete
+  xlim(0, 1) +  # Adjust the x-axis limits
+  scale_x_continuous(breaks = c(0, 1), labels = c("0", "1"), expand = c(0, 0)) +
+  annotate("segment", x = c(0, 1), xend = c(1, 0), y = -Inf, yend = -Inf, color = "black") +  # Add horizontal line segments
+  coord_cartesian(clip = "off")  # Turn off clipping
+
+tiff("../plots_CD8/stack_horizontal.tiff", width = 5 * 350, height = 5 * 150, res = 300, pointsize = 5)     
+stacked_bar_plot
+dev.off()
+
+#Definitive annotations
+CD8 <- RenameIdents(CD8, "C1" = "Naive", "C2" = "Early Tm", "C3" = "Tem", "C4" = "Term/SenL") 
+CD8@active.ident <- factor(CD8@active.ident, levels = c("Naive", "Early Tm", "Term/SenL", "Tem"))
+CD8$clusters.def <- CD8@active.ident
 
 ################################
 ##B) Analyze annotated subsets
@@ -530,8 +593,8 @@ CD8$clusters<- CD8@active.ident
 
 #1) Plot and look at clusters proportions and densities across samples, between conditions (group_id)
 #Save Fig. 3A
-tiff("../plots_CD8/UMAP_ann.tiff", width = 5*150, height = 5*150, res = 300, pointsize = 5)     
-p.ann <- DimPlot_scCustom(CD8, label = TRUE, label.size = 4, colors_use = pal_ident[1:4], pt.size = 0.00001, figure_plot = T) + NoLegend()
+tiff("../plots_CD8/UMAP_ann.tiff", width = 5*250, height = 5*250, res = 300, pointsize = 5)     
+p.ann <- DimPlot_scCustom(CD8, label = TRUE, label.size = 6, label.box = TRUE, colors_use = pal_ident, pt.size = 0.00001, figure_plot = T) + NoLegend()
 p.ann & NoLegend()
 dev.off()
 
@@ -560,9 +623,9 @@ dev.off()
 DefaultAssay(CD8) <- "RNA"
 cust_mark <- list(
   Naive = c("CCR7", "MAL", "LEF1", "SELL", "TCF7"),
-  StL = c("BCL2", "BACH2", "CD27","IL7R", "SLAMF6", "CXCR3", "GZMK"),
-  ActEx = c("EOMES", "CCL4", "XCL2", "CCL3", "XCL1", "KLF6", "TIGIT", "CD69", "CD160", "PDCD1", "TOX", "NR4A2",  "DUSP2"),
-  SenL = c("NKG7", "TBX21",  "CD38","FCRL6", "FCGR3A", "C1orf21", "PRF1", "ENO1",
+  `Early Tm` = c("BCL2", "BACH2", "CD27","IL7R", "SLAMF6", "CXCR3", "GZMK"),
+  Tem = c("EOMES", "CCL4", "XCL2", "CCL3", "XCL1", "KLF6", "TIGIT", "CD69", "CD160", "PDCD1", "TOX", "NR4A2",  "DUSP2"),
+  `Term/SenL` = c("NKG7", "TBX21",  "CD38","FCRL6", "FCGR3A", "C1orf21", "PRF1", "ENO1",
          "GNLY", "ZEB2", "CX3CR1", "FGFBP2", "KLRD1", "GZMB","ZNF683", "CD226")
 )
 
@@ -594,10 +657,10 @@ mat <- t(scale(t(mat)))
 
 mat <- mat %>% as.data.frame() %>%  select(names(cust_mark)) %>% as.matrix()
 
-cols <- pal_ident[seq_along(levels(CD8$clusters))]
-cols <- setNames(cols, levels(CD8$clusters))
+cols <- pal_ident[seq_along(levels(CD8$clusters.def))]
+cols <- setNames(cols, levels(CD8$clusters.def))
 col_anno <- HeatmapAnnotation(
-  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SenL")),
+  df = data.frame(cluster_id = c("Naive", "Early Tm", "Term/SenL", "Tem")),
   col = list(cluster_id = cols, gp = gpar(col = "white"))) 
 lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
                 title = "Expression")
@@ -641,7 +704,7 @@ for(i in seq_along(cust_mark)){
 }
 
 #check for duplicates in subsets
-names(which(table(unlist(comb_mark)) > 1)) #CX3CR1
+names(which(table(unlist(comb_mark)) > 1))
 #lapply(comb_mark, function(x) grep("CX3CR1", x))
 #comb_mark$StL <- comb_mark$StL[-11] #remove duplicate
 
@@ -675,10 +738,10 @@ mat <- t(scale(t(mat)))
 
 mat <- mat %>% as.data.frame() %>%  select(names(comb_mark)) %>% as.matrix()
 
-cols <- pal_ident[seq_along(levels(CD8$clusters))]
-cols <- setNames(cols, levels(CD8$clusters))
+cols <- pal_ident[seq_along(levels(CD8$clusters.def))]
+cols <- setNames(cols, levels(CD8$clusters.def))
 row_anno <- rowAnnotation(
-  df = data.frame(cluster_id = c("Naive", "StL", "ActEx", "SenL")),
+  df = data.frame(cluster_id = c("Naive", "Early Tm", "Tem", "Term/SenL")),
   col = list(cluster_id = cols, gp = gpar(col = "white")), 
   show_legend = c(FALSE, TRUE)) 
 graphics = list(
@@ -718,19 +781,19 @@ p.naive <- FeaturePlot(CD8, "sig_naive1", pt.size = 0.00001, order = T,  min.cut
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
   NoAxes() + NoLegend() + ggtitle("Naive") + theme(plot.title = element_text(size = 10, face = "bold"))
 
-sig_stem <- list(comb_mark$StL)
-CD8 <- AddModuleScore(CD8, features = sig_stem, name = "sig_stem")
-p.stl <- FeaturePlot(CD8, "sig_stem1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+sig_early <- list(comb_mark$`Early Tm`)
+CD8 <- AddModuleScore(CD8, features = sig_early, name = "sig_early")
+p.eTm <- FeaturePlot(CD8, "sig_early1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
-  NoAxes() + NoLegend() + ggtitle("StL") + theme(plot.title = element_text(size = 10, face = "bold"))
+  NoAxes() + NoLegend() + ggtitle("Early Tm") + theme(plot.title = element_text(size = 10, face = "bold"))
 
-sig_actex <- list(comb_mark$ActEx)
-CD8 <- AddModuleScore(CD8, features = sig_actex, name = "sig_actex")
-p.actex <- FeaturePlot(CD8, "sig_actex1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+sig_em <- list(comb_mark$Tem)
+CD8 <- AddModuleScore(CD8, features = sig_em, name = "sig_em")
+p.em <- FeaturePlot(CD8, "sig_em1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
-  NoAxes() + NoLegend() + ggtitle("ActEx") + theme(plot.title = element_text(size = 10, face = "bold"))
+  NoAxes() + NoLegend() + ggtitle("Tem") + theme(plot.title = element_text(size = 10, face = "bold"))
 
-sig_SenL <- list(comb_mark$SenL)
+sig_SenL <- list(comb_mark$`Term/SenL`)
 CD8 <- AddModuleScore(CD8, features = sig_SenL, name = "sig_SenL")
 p.SenL <- FeaturePlot(CD8, "sig_SenL1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
@@ -738,7 +801,7 @@ p.SenL <- FeaturePlot(CD8, "sig_SenL1", pt.size = 0.00001, order = T,  min.cutof
 
 #Save Fig. S5
 tiff("../plots_CD8/p.featcust.tiff", width = 5*300, height = 5*300, res = 300, pointsize = 5)     
-p.sig <- plot_grid(p.naive, p.stl, p.actex, p.SenL, nrow = 2)
+p.sig <- plot_grid(p.naive, p.eTm, p.em, p.SenL, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
 
@@ -747,13 +810,13 @@ dev.off()
 prop_test <- sc_utils(CD8)
 
 prop_test_R.basVSNR.bas <- permutation_test(
-  prop_test, cluster_identity = "clusters",
+  prop_test, cluster_identity = "clusters.def",
   sample_1 = "Res_bas", sample_2 = "NonRes_bas",
   sample_identity = "RespTmp"
 )
 
 prop_test_R.postVSNR.post <- permutation_test(
-  prop_test, cluster_identity = "clusters",
+  prop_test, cluster_identity = "clusters.def",
   sample_1 = "Res_post", sample_2 = "NonRes_post",
   sample_identity = "RespTmp"
 )
@@ -777,25 +840,25 @@ p.perm_R_NR
 dev.off()
 
 prop_test_R.basVSHD <- permutation_test(
-  prop_test, cluster_identity = "clusters",
+  prop_test, cluster_identity = "clusters.def",
   sample_1 = "Res_bas", sample_2 = "HD",
   sample_identity = "RespTmp"
 )
 
 prop_test_NR.basVSHD <- permutation_test(
-  prop_test, cluster_identity = "clusters",
+  prop_test, cluster_identity = "clusters.def",
   sample_1 = "NonRes_bas", sample_2 = "HD",
   sample_identity = "RespTmp"
 )
 
 prop_test_R.postVSHD <- permutation_test(
-  prop_test, cluster_identity = "clusters",
+  prop_test, cluster_identity = "clusters.def",
   sample_1 = "Res_post", sample_2 = "HD",
   sample_identity = "RespTmp"
 )
 
 prop_test_NR.postVSHD <- permutation_test(
-  prop_test, cluster_identity = "clusters",
+  prop_test, cluster_identity = "clusters.def",
   sample_1 = "NonRes_post", sample_2 = "HD",
   sample_identity = "RespTmp"
 )
@@ -833,7 +896,7 @@ p.perm_HD.Resp + legend
 dev.off()
 
 #Speckle
-props <- getTransformedProps(CD8$clusters, CD8$sample_id,
+props <- getTransformedProps(CD8$clusters.def, CD8$sample_id,
                              transform="logit")
 
 tiff("../plots_CD8/MeanVar.tiff", width = 5*150, height = 5*150, res = 300, pointsize = 5)     
@@ -854,7 +917,7 @@ df.anova <- df.anova %>% set_colnames(c("HD", "NonRes", "Res", "Fstat", "p.value
 fqs <- props$Proportions
 df.plot <- set_colnames(reshape2::melt(fqs), c("cluster_id", "sample_id", "frequency"))
 df.plot$group_id <- CD8$group_id[match(df.plot$sample_id, CD8$sample_id)]
-df.plot <- df.plot %>% dplyr::mutate(positions = case_when(cluster_id == "StL" ~ "***", TRUE ~ ""))
+df.plot <- df.plot %>% dplyr::mutate(positions = case_when(cluster_id == "Early Tm" ~ "***", TRUE ~ ""))
 tiff("../plots_CD8/boxAnova.tiff", width = 5*400, height = 5*120, res = 300, pointsize = 5)     
 pal_box <- pal_ident[c(10, 14, 35)]
 p.box <- ggplot(df.plot, aes(x = group_id, y = frequency, fill = group_id)) +
@@ -901,39 +964,40 @@ p2 <- FeaturePlot(obj, features = c('cna_ncorrs_fdr10'))[[1]] +
   labs(title = '', subtitle = 'Filtered for FDR<0.10', color = 'Correlation') 
 p3 <- DimPlot(CD8.cna, group.by = "group_id") + ggtitle("Condition")
 
-#Save Fig. 3F
+#Save Fig. 3H
 tiff("../plots_CD8/cna.tiff", width = 5*300, height = 5*200, res = 300, pointsize = 5)     
 p2 + theme_void(base_size = 18)
 dev.off()
 
 #plot scores (Res + NonRes)
+DefaultAssay(CD8.cna) <- "RNA"
 sig_naive <- list(comb_mark$Naive)
 CD8.cna <- AddModuleScore(CD8.cna, features = sig_naive, name = "sig_naive")
 p.naive <- FeaturePlot(CD8.cna, "sig_naive1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
   NoAxes() + NoLegend() + ggtitle("Naive") + theme(plot.title = element_text(size = 10, face = "bold"))
 
-sig_stem <- list(comb_mark$StL)
-CD8.cna <- AddModuleScore(CD8.cna, features = sig_stem, name = "sig_stem")
-p.stl <- FeaturePlot(CD8.cna, "sig_stem1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+sig_eTm <- list(comb_mark$`Early Tm`)
+CD8.cna <- AddModuleScore(CD8.cna, features = sig_eTm, name = "sig_eTm")
+p.stl <- FeaturePlot(CD8.cna, "sig_eTm1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
   NoAxes() + NoLegend() + ggtitle("StL") + theme(plot.title = element_text(size = 10, face = "bold"))
 
-sig_actex <- list(comb_mark$ActEx)
-CD8.cna <- AddModuleScore(CD8.cna, features = sig_actex, name = "sig_actex")
-p.actex <- FeaturePlot(CD8.cna, "sig_actex1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
+sig_em <- list(comb_mark$Tem)
+CD8.cna <- AddModuleScore(CD8.cna, features = sig_em, name = "sig_em")
+p.em <- FeaturePlot(CD8.cna, "sig_em1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
   NoAxes() + NoLegend() + ggtitle("ActEx") + theme(plot.title = element_text(size = 10, face = "bold"))
 
-sig_SenL <- list(comb_mark$SenL)
-CD8.cna <- AddModuleScore(CD8.cna, features = sig_SenL, name = "sig_SenL")
+sig_Term.SenL <- list(comb_mark$`Term/SenL`)
+CD8.cna <- AddModuleScore(CD8.cna, features = sig_Term.SenL, name = "sig_SenL")
 p.SenL <- FeaturePlot(CD8.cna, "sig_SenL1", pt.size = 0.00001, order = T,  min.cutoff = "q10", max.cutoff = "q90") +
   scale_colour_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu"))) + theme(panel.border = element_rect(colour = "black", fill=NA, size=0.5)) + 
   NoAxes() + NoLegend() + ggtitle("SenL") + theme(plot.title = element_text(size = 10, face = "bold"))
 
 #Save Fig. S7
 tiff("../plots_CD8/p.featcustCNA.tiff", width = 5*300, height = 5*300, res = 300, pointsize = 5)     
-p.sig <- plot_grid(p.naive, p.stl, p.actex, p.SenL, nrow = 2)
+p.sig <- plot_grid(p.naive, p.eTm, p.em, p.SenL, nrow = 2)
 plot_grid(p.sig, legend, ncol = 1, rel_heights = c(1, .2)) 
 dev.off()
 
@@ -942,7 +1006,7 @@ dev.off()
 ##################################################################
 
 #1) Run Slingshot and plot the two trajectories
-clusterLabels <- CD8$clusters
+clusterLabels <- CD8$clusters.def
 sceCD8 <- as.SingleCellExperiment(CD8, assay = "RNA")
 sds <- slingshot(sceCD8, clusterLabels = clusterLabels, 
                  allow.breaks = TRUE, stretch = 2, reducedDim = "UMAP", start.clus = "Naive") #Calcualting the trajectory
@@ -983,8 +1047,8 @@ p.traj <- ggplot(df, aes(x = UMAP_1, y = UMAP_2)) +
   labs(col = "Pseudotime") +
   geom_path(data = curves %>% arrange(Order),
             aes(group = Lineage), col = "black",  arrow = arrow(), lineend = "round", size = 1.5) +
-  annotate("text", x = -7.7, y = 3.7, label = "ActEx", size = 5) +
-  annotate("text", x = -8, y = -5.6, label = "SenL", size = 5) +
+  annotate("text", x = -7.7, y = 3.7, label = "Tem", size = 5) +
+  annotate("text", x = -8, y = -5.6, label = "Term/SenL", size = 5) +
   theme(legend.position = c(.15, .35),
         legend.background = element_blank()) +  theme_minimal()  
 
@@ -1028,7 +1092,7 @@ oPat <- order(patternRes$waldStat, decreasing = TRUE)
 rownames(patternRes)[oPat][1:20]
 
 p.gzmk <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][1], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "Term/SenL", "2"="Tem")) +
   theme(legend.position = "none") +
   ggtitle ("GZMK") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1041,13 +1105,13 @@ p.gzmk <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oP
         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) 
 
 legend <- cowplot::get_legend(plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][1]) +
-                                scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx"))+
+                                scale_color_viridis_d(name = "Lineages", labels=c("1" = "Term/SenL", "2"="Tem"))+
                                 theme(legend.position = "right",
                                       legend.title = element_text(size=18),
                                       legend.text = element_text(size=15)))
 
 p.prf1 <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][5], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "Term/SenL", "2"="Tem")) +
   theme(legend.position = "none") +
   ggtitle ("PRF1") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1060,7 +1124,7 @@ p.prf1 <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPa
         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) 
 
 p.gzmb <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][6], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "Term/SenL", "2"="Tem")) +
   theme(legend.position = "none") +
   ggtitle ("GZMB") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1073,7 +1137,7 @@ p.gzmb <-plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPa
         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) 
 
 p.fgfbp2 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][7], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "Term/SenL", "2"="Tem")) +
   theme(legend.position = "none") +
   ggtitle ("FGFBP2") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1086,7 +1150,7 @@ p.fgfbp2 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[
         panel.border = element_rect(colour = "black", fill=NA, size=0.5)) 
 
 p.gnly <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][9], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "Term/SenL", "2"="Tem")) +
   theme(legend.position = "none") +
   ggtitle ("GNLY") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1100,7 +1164,7 @@ p.gnly <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oP
 
 
 p.nkg7 <- plotSmoothers(sce.gam, counts(sce.gam), gene = rownames(patternRes)[oPat][15], xlab = "", ylab = "") + 
-  scale_color_viridis_d(name = "Lineages", labels=c("1" = "SenL", "2"="ActEx")) +
+  scale_color_viridis_d(name = "Lineages", labels=c("1" = "Term/SenL", "2"="Tem")) +
   theme(legend.position = "none") +
   ggtitle ("NKG7") +
   theme(plot.title = element_text(hjust = 0.5)) + 
@@ -1144,17 +1208,17 @@ heat.SenL <- Heatmap(mat.SenL,
                    cluster_columns = FALSE,
                    cluster_rows = TRUE,
                    show_heatmap_legend = FALSE,
-                   column_title = "SenL")
+                   column_title = "Term/SenL")
 
-mat.ae <- df.ls$lineage2 
-mat.ae <- mat.ae %>% filter(!str_detect(rownames(mat.ae), "^RP[SL]|^MT-")) %>% 
+mat.em <- df.ls$lineage2 
+mat.em <- mat.em %>% filter(!str_detect(rownames(mat.em), "^RP[SL]|^MT-")) %>% 
   as.data.frame.matrix()
-mat.ae <- t(scale(t(mat.ae)))
+mat.em <- t(scale(t(mat.em)))
 
 #Look at genes postions
-#position <- which(rownames(mat.ae) %in% genes_int)
-#row_an.ae <- rowAnnotation(Genes = anno_mark(at = which(rownames(mat.ae) %in% genes_int),
-                                             #labels = rownames(mat.ae)[position],
+#position <- which(rownames(mat.em) %in% genes_int)
+#row_an.ae <- rowAnnotation(Genes = anno_mark(at = which(rownames(mat.em) %in% genes_int),
+                                             #labels = rownames(mat.em)[position],
                                              #labels_gp = gpar(fontsize = 15),
                                              #link_width = unit(2.5, "mm"),
                                              #padding = unit(1, "mm"),
@@ -1162,13 +1226,13 @@ mat.ae <- t(scale(t(mat.ae)))
 
 
 graphics = list(
-  "Naive/StL" = function(x, y, w, h) {
+  "Naive/Early Tm" = function(x, y, w, h) {
     grid.points(x, y, gp = gpar(col = "darkviolet"), pch = 16, size = unit(2, "char"))
   },
-  "ActEx" = function(x, y, w, h) {
+  "Tem" = function(x, y, w, h) {
     grid.points(x, y, gp = gpar(col = pal_ident[4]), pch = 16, size = unit(2, "char"))
   },
-  "SenL" = function(x, y, w, h) {
+  "Term/SenL" = function(x, y, w, h) {
     grid.points(x, y, gp = gpar(col = pal_ident[3]), pch = 16, size = unit(2, "char"))
   }
 )
@@ -1176,18 +1240,18 @@ lgd = Legend(title = "", at = names(graphics), graphics = graphics)
 
 lgd_aes <- list(direction = "horizontal", legend_width = unit(2.2, "cm"),
                 title = "Expression")
-heat.ae <- Heatmap(mat.ae,
+heat.em <- Heatmap(mat.em,
                    show_column_names = FALSE,
                    #right_annotation = row_an.ae,
                    cluster_columns = FALSE,
                    cluster_rows = T,
                    row_names_gp = grid::gpar(col = "white", fontsize = 12),
-                   column_title = "ActEx",
+                   column_title = "Tem",
                    heatmap_legend_param = lgd_aes)
 
 #Save Fig. 5C
-tiff("../plots_CD8/heatTraj2.tiff", width = 5*270, height = 5*220, res = 300, pointsize = 5)     
-draw(heat.SenL + heat.ae,  heatmap_legend_side = "bottom", annotation_legend_list = lgd)
+tiff("../plots_CD8/heatTraj2.tiff", width = 5*300, height = 5*220, res = 300, pointsize = 5)     
+draw(heat.SenL + heat.em,  heatmap_legend_side = "bottom", annotation_legend_list = lgd)
 dev.off()
 
 ###################################################################
@@ -1230,9 +1294,18 @@ names(gene_sets$genesets) <- gene_sets$geneset.names
 
 ##Senescence-like VS Stem-like
 # get indices of cells which are either SenL or StL
-c_SenLvStL <- CD8@meta.data %>%
+md <- CD8@meta.data
+md <- md %>%
+  mutate(clusters.use = case_when(
+    grepl(" ", clusters.def) ~ gsub(" ", "_", clusters.def),
+    grepl("/", clusters.def) ~ gsub("/", "_", clusters.def),
+    TRUE ~ clusters.def
+  ))
+CD8@meta.data <- md
+
+c_SenLvsETm <- CD8@meta.data %>%
   mutate(row_number = row_number()) %>%
-  dplyr::filter(grepl(clusters, pattern = 'SenL|StL')) %>%
+  dplyr::filter(grepl(clusters.use, pattern = 'Term_SenL|Early_Tm')) %>%
   arrange(clusters) %>%
   pull(row_number)
 
@@ -1242,32 +1315,32 @@ genes_to_analyze <- gene_sets$genesets %>% unlist() %>% unique()
 genes_to_analyze <- genes_to_analyze[which(genes_to_analyze %in% rownames(CD8@assays$RNA@counts))]
 
 # get expression matrix and reduce it to cells and genes of interest
-mat_SenLvStL <- CD8@assays$RNA@counts[ genes_to_analyze , c_SenLvStL] %>% as.matrix()
+mat_SenLvETm <- CD8@assays$RNA@counts[ genes_to_analyze , c_SenLvsETm] %>% as.matrix()
 
 # perform GSVA
-g_SenLvStL <- GSVA::gsva(
-  mat_SenLvStL,
+g_SenLvETm <- GSVA::gsva(
+  mat_SenLvETm,
   gset.idx.list = gene_sets$genesets,
   parallel.sz = 1
 )
 
 # generate design matrix
-dm_SenLvStL <- tibble(
+dm_SenLvETm <- tibble(
   control = 1,
   test = c(
-    rep(0, CD8@meta.data %>% dplyr::filter(clusters == 'StL') %>% nrow()),
-    rep(1, CD8@meta.data %>% dplyr::filter(clusters == 'SenL') %>% nrow())
+    rep(0, CD8@meta.data %>% dplyr::filter(clusters.use == "Early_Tm") %>% nrow()),
+    rep(1, CD8@meta.data %>% dplyr::filter(clusters.use == "Term_SenL") %>% nrow())
   )
 )
 
 # fit linear model, followed by empirical Bayes statistics for differential
 # enrichment analysis
-fit_SenLvStL <- lmFit(g_SenLvStL, dm_SenLvStL)
-fit_SenLvStL <- eBayes(fit_SenLvStL)
+fit_SenLvETm <- lmFit(g_SenLvETm, dm_SenLvETm)
+fit_SenLvETm <- eBayes(fit_SenLvETm)
 
 # prepare data for plotting
-data_SenLvStL <- topTable(fit_SenLvStL, coef = 'test', number = 50) %>%
-  mutate(gene_set = rownames(fit_SenLvStL$t)) %>%
+data_SenLvETm <- topTable(fit_SenLvETm, coef = 'test', number = 50) %>%
+  mutate(gene_set = rownames(fit_SenLvETm$t)) %>%
   arrange(t) %>%
   mutate(
     gene_set = factor(gene_set, levels = gene_set),
@@ -1278,7 +1351,7 @@ data_SenLvStL <- topTable(fit_SenLvStL, coef = 'test', number = 50) %>%
 
 #Save Fig. 3I
 # plot t-value
-SenLVSstl <- ggplot(data = data_SenLvStL, aes(x = gene_set, y = t, fill = t)) +
+SenLVSETm <- ggplot(data = data_SenLvETm, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
   geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = "black") +
   geom_text(
@@ -1289,7 +1362,7 @@ SenLVSstl <- ggplot(data = data_SenLvStL, aes(x = gene_set, y = t, fill = t)) +
       hjust = just,
       color = color
     ),
-    nudge_y = data_SenLvStL$nudge_y, size = 3
+    nudge_y = data_SenLvETm$nudge_y, size = 3
   ) +
   scale_x_discrete(name = '', labels = NULL) +
   scale_y_continuous(name = 't-value', limits = c(-55,55)) +
@@ -1303,45 +1376,45 @@ SenLVSstl <- ggplot(data = data_SenLvStL, aes(x = gene_set, y = t, fill = t)) +
     legend.title = element_blank(),
     plot.title = element_text(hjust = 0.5),
     legend.position = "bottom"
-  ) + ggtitle("Senescent-like VS Stem-like") + 
+  ) + ggtitle("Term/SenL VS Early Tm") + 
   scale_fill_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), 
                                breaks=c(-30, 25), label = c("StL", "SenL"))
 
 ##Senescence-like VS Activated Exhausted
 # get indices of cells which are either SenL or StL
-c_SenLvActEx <- CD8@meta.data %>%
+c_SenLvTem <- CD8@meta.data %>%
   mutate(row_number = row_number()) %>%
-  dplyr::filter(grepl(clusters, pattern = 'SenL|ActEx')) %>%
-  arrange(clusters) %>%
+  dplyr::filter(grepl(clusters.use, pattern = 'Term_SenL|Tem')) %>%
+  arrange(clusters.use) %>%
   pull(row_number)
 
 # get expression matrix and reduce it to cells and genes of interest
-mat_SenLvActEx <- CD8@assays$RNA@counts[ genes_to_analyze , c_SenLvActEx] %>% as.matrix()
+mat_SenLvTem <- CD8@assays$RNA@counts[ genes_to_analyze , c_SenLvTem] %>% as.matrix()
 
 # perform GSVA
-g_SenLvActEx <- GSVA::gsva(
-  mat_SenLvActEx,
+g_SenLvTem <- GSVA::gsva(
+  mat_SenLvTem,
   gset.idx.list = gene_sets$genesets,
   parallel.sz = 1
 )
 
 # generate design matrix
-dm_SenLvActEx <- tibble(
+dm_SenLvTem <- tibble(
   control = 1,
   test = c(
-    rep(0, CD8@meta.data %>% dplyr::filter(clusters == 'ActEx') %>% nrow()),
-    rep(1, CD8@meta.data %>% dplyr::filter(clusters == 'SenL') %>% nrow())
+    rep(0, CD8@meta.data %>% dplyr::filter(clusters.use == 'Tem') %>% nrow()),
+    rep(1, CD8@meta.data %>% dplyr::filter(clusters.use == 'Term_SenL') %>% nrow())
   )
 )
 
 # fit linear model, followed by empirical Bayes statistics for differential
 # enrichment analysis
-fit_SenLvActEx <- lmFit(g_SenLvActEx, dm_SenLvActEx)
-fit_SenLvActEx <- eBayes(fit_SenLvActEx)
+fit_SenLvTem <- lmFit(g_SenLvTem, dm_SenLvTem)
+fit_SenLvTem <- eBayes(fit_SenLvTem)
 
 # prepare data for plotting
-data_SenLvActEx <- topTable(fit_SenLvActEx, coef = 'test', number = 50) %>%
-  mutate(gene_set = rownames(fit_SenLvActEx$t)) %>%
+data_SenLvTem <- topTable(fit_SenLvTem, coef = 'test', number = 50) %>%
+  mutate(gene_set = rownames(fit_SenLvTem$t)) %>%
   arrange(t) %>%
   mutate(
     gene_set = factor(gene_set, levels = gene_set),
@@ -1351,7 +1424,7 @@ data_SenLvActEx <- topTable(fit_SenLvActEx, coef = 'test', number = 50) %>%
   )
 
 # plot t-value
-SenLVSActEx <- ggplot(data = data_SenLvActEx, aes(x = gene_set, y = t, fill = t)) +
+SenLVSTem <- ggplot(data = data_SenLvTem, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
   geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = 'black') +
   geom_text(
@@ -1362,11 +1435,11 @@ SenLVSActEx <- ggplot(data = data_SenLvActEx, aes(x = gene_set, y = t, fill = t)
       hjust = just,
       color = color
     ),
-    nudge_y = data_SenLvActEx$nudge_y, size = 3
+    nudge_y = data_SenLvTem$nudge_y, size = 3
   ) +
   scale_x_discrete(name = '', labels = NULL) +
   scale_y_continuous(name = 't-value', limits = c(-55,55)) +
-  scale_fill_distiller(palette = 'Spectral', limits = c(-max(data_SenLvActEx$t), max(data_SenLvActEx$t))) +
+  scale_fill_distiller(palette = 'Spectral', limits = c(-max(data_SenLvTem$t), max(data_SenLvTem$t))) +
   scale_color_manual(values = c('black' = 'black', 'grey' = 'grey')) +
   coord_flip() +
   guides(color = "none") +
@@ -1377,45 +1450,45 @@ SenLVSActEx <- ggplot(data = data_SenLvActEx, aes(x = gene_set, y = t, fill = t)
     legend.title = element_blank(),
     legend.position = 'bottom',
     plot.title = element_text(hjust = 0.5)
-  ) + ggtitle("Senescent-like VS Activated-Exhausted") +
+  ) + ggtitle("Term/SenL VS Tem") +
   scale_fill_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), 
                                breaks=c(-32, 34), label = c("ActEx", "SenL"))
 
 ##Activated-Exhausted VS Stem-like
 # get indices of cells which are either SenL or StL
-c_ActExvStL <- CD8@meta.data %>%
+c_TemvETm <- CD8@meta.data %>%
   mutate(row_number = row_number()) %>%
-  dplyr::filter(grepl(clusters, pattern = 'ActEx|StL')) %>%
-  arrange(clusters) %>%
+  dplyr::filter(grepl(clusters.use, pattern = 'Tem|Early_Tm')) %>%
+  arrange(clusters.use) %>%
   pull(row_number)
 
 # get expression matrix and reduce it to cells and genes of interest
-mat_ActExvStL <- CD8@assays$RNA@counts[ genes_to_analyze , c_ActExvStL] %>% as.matrix()
+mat_TemvETm <- CD8@assays$RNA@counts[ genes_to_analyze , c_TemvETm] %>% as.matrix()
 
 # perform GSVA
-g_ActExvStL <- GSVA::gsva(
-  mat_ActExvStL,
+g_TemvETm <- GSVA::gsva(
+  mat_TemvETm,
   gset.idx.list = gene_sets$genesets,
   parallel.sz = 1
 )
 
 # generate design matrix
-dm_ActExvStL <- tibble(
+dm_TemvETm <- tibble(
   control = 1,
   test = c(
-    rep(0, CD8@meta.data %>% dplyr::filter(clusters == 'StL') %>% nrow()),
-    rep(1, CD8@meta.data %>% dplyr::filter(clusters == 'ActEx') %>% nrow())
+    rep(0, CD8@meta.data %>% dplyr::filter(clusters.use == 'Early_Tm') %>% nrow()),
+    rep(1, CD8@meta.data %>% dplyr::filter(clusters.use == 'Tem') %>% nrow())
   )
 )
 
 # fit linear model, followed by empirical Bayes statistics for differential
 # enrichment analysis
-fit_ActExvStL<- lmFit(g_ActExvStL, dm_ActExvStL)
-fit_ActExvStL<- eBayes(fit_ActExvStL)
+fit_TemvETm<- lmFit(g_TemvETm, dm_TemvETm)
+fit_TemvETm<- eBayes(fit_TemvETm)
 
 # prepare data for plotting
-data_ActExvStL <- topTable(fit_ActExvStL, coef = 'test', number = 50) %>%
-  mutate(gene_set = rownames(fit_ActExvStL$t)) %>%
+data_TemvETm <- topTable(fit_TemvETm, coef = 'test', number = 50) %>%
+  mutate(gene_set = rownames(fit_TemvETm$t)) %>%
   arrange(t) %>%
   mutate(
     gene_set = factor(gene_set, levels = gene_set),
@@ -1425,7 +1498,7 @@ data_ActExvStL <- topTable(fit_ActExvStL, coef = 'test', number = 50) %>%
   )
 
 # plot t-value
-ActExvStL <- ggplot(data = data_ActExvStL, aes(x = gene_set, y = t, fill = t)) +
+TemvETm <- ggplot(data = data_TemvETm, aes(x = gene_set, y = t, fill = t)) +
   geom_col() +
   geom_hline(yintercept = c(-5,5), linetype = 'dashed', color = 'black') +
   geom_text(
@@ -1436,11 +1509,11 @@ ActExvStL <- ggplot(data = data_ActExvStL, aes(x = gene_set, y = t, fill = t)) +
       hjust = just,
       color = color
     ),
-    nudge_y = data_ActExvStL$nudge_y, size = 3
+    nudge_y = data_TemvETm$nudge_y, size = 3
   ) +
   scale_x_discrete(name = '', labels = NULL) +
   scale_y_continuous(name = 't-value', limits = c(-55,55)) +
-  scale_fill_distiller(palette = 'Spectral', limits = c(-max(data_ActExvStL$t), max(data_ActExvStL$t))) +
+  scale_fill_distiller(palette = 'Spectral', limits = c(-max(data_TemvETm$t), max(data_TemvETm$t))) +
   scale_color_manual(values = c('black' = 'black', 'grey' = 'grey')) +
   coord_flip() +
   theme_bw() +
@@ -1450,22 +1523,22 @@ ActExvStL <- ggplot(data = data_ActExvStL, aes(x = gene_set, y = t, fill = t)) +
     axis.ticks.y =  element_blank(),
     legend.title = element_blank(),
     legend.position = 'bottom'
-  ) + ggtitle("Activated-exhausted VS Stem-like") +
+  ) + ggtitle("Tem VS Early Tm") +
   theme(plot.title = element_text(hjust = 0.5)) +
   scale_fill_gradientn(colours = rev(brewer.pal(n = 9, name = "RdBu")), 
-                       breaks=c(-32, 34), label = c("StL", "ActEx"))
+                       breaks=c(-32, 34), label = c("Early Tm", "Tem"))
 
 
 #Save Fig. 4E
 tiff("../plots_CD8/GSVA_plots.tiff", width = 5*830, height = 5*420, res = 300, pointsize = 5)     
-plot_grid(SenLVSstl, SenLVSActEx, nrow = 1)
+plot_grid(SenLVSTem, SenLVSETm, nrow = 1)
 dev.off()
 
 #Save Fig. S10
 tiff("../plots_CD8/GSVA_plots2.tiff", width = 5*415, height = 5*350, res = 300, pointsize = 5)     
-ActExvStL
+TemvETm
 dev.off()
-
+library(SCpubr)
 #2) Use SCpubr and decoupleR for pathway activity inference
 # Retrieve prior knowledge network.
 network <- decoupleR::get_progeny(organism = "human")
